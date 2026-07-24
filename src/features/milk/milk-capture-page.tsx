@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useLiveQuery } from "dexie-react-hooks";
+import { Baby, CalendarDays, CirclePlus, Droplets, Ruler, Save, Truck } from "lucide-react";
 import { Button, Card, FieldLabel, Notice, TextInput } from "@/components/ui";
 import { nowInFarmTimezone } from "@/domain/time";
 import { interpolateTankLiters } from "@/domain/tank";
@@ -114,7 +115,7 @@ export const MilkCapturePage = ({ session, onSaved }: MilkCapturePageProps) => {
   return (
     <div className="space-y-6">
       <div className="px-1">
-        <p className="text-sm font-bold uppercase tracking-[0.16em] text-lime-800">Registro diario</p>
+        <p className="flex items-center gap-1.5 text-sm font-bold uppercase tracking-[0.16em] text-lime-800"><Droplets size={16} aria-hidden="true" />Registro diario</p>
         <h1 className="mt-1 text-3xl font-black tracking-tight text-stone-950">Anotar la leche</h1>
       </div>
 
@@ -128,6 +129,7 @@ export const MilkCapturePage = ({ session, onSaved }: MilkCapturePageProps) => {
             className={mode === "liters" ? "bg-lime-700 text-white shadow-sm" : "text-stone-600"}
             onClick={() => setMode("liters")}
           >
+            <Droplets size={19} aria-hidden="true" />
             Litros
           </Button>
           <Button
@@ -136,6 +138,7 @@ export const MilkCapturePage = ({ session, onSaved }: MilkCapturePageProps) => {
             className={mode === "mark" ? "bg-lime-700 text-white shadow-sm" : "text-stone-600"}
             onClick={() => setMode("mark")}
           >
+            <Ruler size={19} aria-hidden="true" />
             Marca de regla
           </Button>
         </div>
@@ -167,18 +170,18 @@ export const MilkCapturePage = ({ session, onSaved }: MilkCapturePageProps) => {
         ) : null}
 
         <details className="mt-6 rounded-2xl bg-stone-50 p-4">
-          <summary className="cursor-pointer text-base font-bold text-stone-700">Agregar datos opcionales</summary>
+          <summary className="flex cursor-pointer items-center gap-2 text-base font-bold text-stone-700"><CirclePlus size={19} aria-hidden="true" />Agregar datos opcionales</summary>
           <div className="mt-5 space-y-5">
             <div>
-              <FieldLabel>Litros que declaró el tanquero</FieldLabel>
+              <FieldLabel><span className="inline-flex items-center gap-1.5"><Truck size={16} aria-hidden="true" />Litros que declaró el tanquero</span></FieldLabel>
               <TextInput inputMode="decimal" min="0" step="0.1" type="number" value={buyerLiters} onChange={(event) => setBuyerLiters(event.target.value)} placeholder="Ejemplo: 203" />
             </div>
             <div>
-              <FieldLabel>Litros para terneros</FieldLabel>
+              <FieldLabel><span className="inline-flex items-center gap-1.5"><Baby size={16} aria-hidden="true" />Litros para terneros</span></FieldLabel>
               <TextInput inputMode="decimal" min="0" step="0.1" type="number" value={calvesLiters} onChange={(event) => setCalvesLiters(event.target.value)} placeholder="Ejemplo: 4" />
             </div>
             <div>
-              <FieldLabel>Fecha</FieldLabel>
+              <FieldLabel><span className="inline-flex items-center gap-1.5"><CalendarDays size={16} aria-hidden="true" />Fecha</span></FieldLabel>
               <TextInput type="date" value={date} onChange={(event) => setDate(event.target.value)} />
             </div>
           </div>
@@ -192,6 +195,7 @@ export const MilkCapturePage = ({ session, onSaved }: MilkCapturePageProps) => {
           disabled={isSaving}
           onClick={() => void save()}
         >
+          <Save size={20} aria-hidden="true" />
           {isSaving ? "Guardando…" : "Guardar la medida"}
         </Button>
       </Card>

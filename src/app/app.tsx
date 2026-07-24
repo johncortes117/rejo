@@ -4,6 +4,7 @@ import type { Session } from "@supabase/supabase-js";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
+import { Beef, ClipboardPenLine, CloudUpload, Droplets, House, Milk, Settings } from "lucide-react";
 import { Button, Card, FieldLabel, Notice, TextInput } from "@/components/ui";
 import { provisionFarm, readFarmSession } from "@/db/bootstrap";
 import { db } from "@/db/rejo-db";
@@ -105,6 +106,7 @@ const ProvisioningPage = ({ onProvisioned, userId }: ProvisioningPageProps) => {
           disabled={isSaving}
           onClick={() => void submit()}
         >
+          <House size={20} aria-hidden="true" />
           {isSaving ? "Preparando…" : "Empezar"}
         </Button>
       </Card>
@@ -137,6 +139,7 @@ const HomePage = ({ session, onCapture }: HomePageProps) => {
           {dashboard?.todayLiters === undefined ? "Aún falta la medida de hoy" : "litros medidos en el tanque"}
         </p>
         <Button type="button" className="mt-6 w-full bg-white text-lime-950 hover:bg-lime-50" onClick={onCapture}>
+          <Milk size={20} aria-hidden="true" />
           {dashboard?.todayLiters === undefined ? "Anotar la leche" : "Revisar la medida"}
         </Button>
       </section>
@@ -158,11 +161,11 @@ interface NavigationProps {
 }
 
 const Navigation = ({ currentPage, onNavigate }: NavigationProps) => {
-  const links: Array<{ page: Page; label: string }> = [
-    { page: "home", label: "Inicio" },
-    { page: "capture", label: "Anotar" },
-    { page: "animals", label: "Mis vacas" },
-    { page: "settings", label: "Ajustes" }
+  const links = [
+    { page: "home" as const, label: "Inicio", icon: House },
+    { page: "capture" as const, label: "Anotar", icon: Droplets },
+    { page: "animals" as const, label: "Mis vacas", icon: Beef },
+    { page: "settings" as const, label: "Ajustes", icon: Settings }
   ];
 
   return (
@@ -170,13 +173,14 @@ const Navigation = ({ currentPage, onNavigate }: NavigationProps) => {
       {links.map((link) => (
         <button
           className={
-            "min-h-12 rounded-2xl px-1 text-sm font-bold " +
+            "flex min-h-14 flex-col items-center justify-center gap-0.5 rounded-2xl px-1 text-sm font-bold " +
             (currentPage === link.page ? "bg-lime-100 text-lime-950" : "text-stone-500")
           }
           key={link.page}
           onClick={() => onNavigate(link.page)}
           type="button"
         >
+          <link.icon size={20} strokeWidth={2.25} aria-hidden="true" />
           {link.label}
         </button>
       ))}
@@ -221,6 +225,7 @@ const AppShell = ({ session }: { session: FarmSession }) => {
             type="button"
             onClick={() => void sync()}
           >
+            <CloudUpload size={20} aria-hidden="true" />
             Respaldar
           </button>
         ) : null}
@@ -346,6 +351,7 @@ const SupabaseSignInPage = () => {
           disabled={isSubmitting}
           onClick={() => void submit()}
         >
+          <ClipboardPenLine size={20} aria-hidden="true" />
           {isSubmitting ? "Guardando…" : mode === "sign-in" ? "Entrar" : "Crear cuenta"}
         </Button>
 

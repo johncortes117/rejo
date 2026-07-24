@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { useLiveQuery } from "dexie-react-hooks";
+import { Ban, Building2, Check, CirclePlus, Clock3, Ruler, Save, Settings, ShieldCheck, Trash2, Truck } from "lucide-react";
 import { Button, Card, FieldLabel, Notice, TextInput } from "@/components/ui";
 import type { Buyer, Farm, FarmSession } from "@/domain/models";
 import type { CalibrationPoint } from "@/domain/tank";
@@ -122,8 +123,9 @@ export const SettingsPage = ({ session }: SettingsPageProps) => {
 
   return (
     <div className="space-y-5">
-      <div>
-        <h1 className="text-3xl font-black text-stone-950">Ajustes</h1>
+      <div className="px-1">
+        <p className="flex items-center gap-1.5 text-sm font-bold uppercase tracking-[0.16em] text-lime-800"><Settings size={16} aria-hidden="true" />Configuración</p>
+        <h1 className="mt-1 text-3xl font-black text-stone-950">Ajustes</h1>
         <p className="mt-1 text-lg text-stone-700">Solo cambia lo que ya conoces.</p>
       </div>
 
@@ -131,7 +133,7 @@ export const SettingsPage = ({ session }: SettingsPageProps) => {
       {error ? <Notice tone="error">{error}</Notice> : null}
 
       <Card>
-        <h2 className="text-2xl font-black">La finca</h2>
+        <h2 className="flex items-center gap-2 text-2xl font-black"><Building2 size={24} aria-hidden="true" />La finca</h2>
         <div className="mt-5">
           <FieldLabel>Nombre de la finca</FieldLabel>
           <TextInput
@@ -149,7 +151,7 @@ export const SettingsPage = ({ session }: SettingsPageProps) => {
       </Card>
 
       <Card>
-        <h2 className="text-2xl font-black">Quien compra la leche</h2>
+        <h2 className="flex items-center gap-2 text-2xl font-black"><Truck size={24} aria-hidden="true" />Quien compra la leche</h2>
         <div className="mt-5">
           <FieldLabel>Nombre</FieldLabel>
           <TextInput
@@ -160,7 +162,7 @@ export const SettingsPage = ({ session }: SettingsPageProps) => {
       </Card>
 
       <Card>
-        <h2 className="text-2xl font-black">Tabla de aforo del tanque</h2>
+        <h2 className="flex items-center gap-2 text-2xl font-black"><Ruler size={24} aria-hidden="true" />Tabla de aforo del tanque</h2>
         <p className="mt-1 text-lg text-stone-700">
           Si todavía no tienes la tabla, no pasa nada: sigue anotando en litros.
         </p>
@@ -196,6 +198,7 @@ export const SettingsPage = ({ session }: SettingsPageProps) => {
                   setForm({ ...form, calibration: form.calibration.filter((_, pointIndex) => pointIndex !== index) })
                 }
               >
+                <Trash2 size={19} aria-hidden="true" />
                 Quitar
               </Button>
             </div>
@@ -207,15 +210,17 @@ export const SettingsPage = ({ session }: SettingsPageProps) => {
           className="mt-4 w-full bg-stone-100 text-stone-800"
           onClick={() => setForm({ ...form, calibration: [...form.calibration, { mark: 0, liters: 0 }] })}
         >
+          <CirclePlus size={20} aria-hidden="true" />
           Agregar una marca
         </Button>
       </Card>
 
       <Card>
-        <h2 className="text-2xl font-black">Plan sanitario mínimo</h2>
+        <h2 className="flex items-center gap-2 text-2xl font-black"><ShieldCheck size={24} aria-hidden="true" />Plan sanitario mínimo</h2>
         <p className="mt-1 text-lg text-stone-700">Incluye curada periódica y prueba anual de brucelosis. Puedes usarlo como guía, no es obligatorio.</p>
         {preventiveTasks.length === 0 ? (
           <Button type="button" className="mt-5 w-full bg-stone-100 text-stone-800" onClick={() => void activatePreventivePlan()}>
+            <ShieldCheck size={20} aria-hidden="true" />
             Activar plan sanitario mínimo
           </Button>
         ) : (
@@ -225,9 +230,9 @@ export const SettingsPage = ({ session }: SettingsPageProps) => {
                 <p className="text-lg font-bold">{task.taskType === "deworming" ? "Curada" : "Prueba anual de brucelosis"}</p>
                 <p className="text-lg text-stone-700">Próxima fecha: {task.dueDate}</p>
                 <div className="mt-3 grid grid-cols-3 gap-2">
-                  <Button type="button" className="bg-lime-700 text-white" onClick={() => void updatePreventiveTask(task, "complete")}>Hecha</Button>
-                  <Button type="button" className="bg-stone-100 text-stone-800" onClick={() => void updatePreventiveTask(task, "postpone")}>+7 días</Button>
-                  <Button type="button" className="bg-red-50 text-red-900" onClick={() => void updatePreventiveTask(task, "ignore")}>Ignorar</Button>
+                  <Button type="button" className="bg-lime-700 text-white" onClick={() => void updatePreventiveTask(task, "complete")}><Check size={19} aria-hidden="true" />Hecha</Button>
+                  <Button type="button" className="bg-stone-100 text-stone-800" onClick={() => void updatePreventiveTask(task, "postpone")}><Clock3 size={19} aria-hidden="true" />+7 días</Button>
+                  <Button type="button" className="bg-red-50 text-red-900" onClick={() => void updatePreventiveTask(task, "ignore")}><Ban size={19} aria-hidden="true" />Ignorar</Button>
                 </div>
               </div>
             ))}
@@ -236,6 +241,7 @@ export const SettingsPage = ({ session }: SettingsPageProps) => {
       </Card>
 
       <Button type="button" className="w-full bg-lime-700 text-white hover:bg-lime-800" onClick={() => void save()}>
+        <Save size={20} aria-hidden="true" />
         Guardar ajustes
       </Button>
     </div>

@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useLiveQuery } from "dexie-react-hooks";
+import { Archive, Beef, Check, CirclePlus, ClipboardPenLine, Clock3, FolderOpen, HeartPulse, Pencil, Save, ShieldPlus, Stethoscope, Syringe, X } from "lucide-react";
 import { Button, Card, FieldLabel, Notice, TextInput } from "@/components/ui";
 import type { Animal, AnimalSex, FarmSession } from "@/domain/models";
 import { db } from "@/db/rejo-db";
@@ -56,6 +57,7 @@ const FullScreenHeader = ({
 }) => (
   <header className="sticky top-0 z-10 flex items-center gap-4 border-b border-stone-200 bg-white/95 px-4 py-3 backdrop-blur sm:px-6">
     <Button type="button" className="shrink-0 bg-stone-100 px-4 text-stone-800" onClick={onClose} aria-label="Cerrar ficha">
+      <X size={19} aria-hidden="true" />
       Cerrar
     </Button>
     <div className="min-w-0">
@@ -131,7 +133,7 @@ const HealthPanel = ({ animal, session }: { animal: Animal; session: FarmSession
 
       <Card>
         <p className="text-sm font-bold uppercase tracking-wide text-stone-500">Nuevo registro</p>
-        <h2 className="mt-1 text-2xl font-black text-stone-950">¿Qué atención recibió?</h2>
+        <h2 className="mt-1 flex items-center gap-2 text-2xl font-black text-stone-950"><Stethoscope size={24} aria-hidden="true" />¿Qué atención recibió?</h2>
         <div className="mt-5">
           <FieldLabel>Evento</FieldLabel>
           <select className="min-h-12 w-full rounded-2xl border border-stone-300 bg-stone-50 px-4 text-lg text-stone-950 outline-none focus:border-lime-700 focus:bg-white focus:ring-4 focus:ring-lime-100" value={type} onChange={(event) => setType(event.target.value as typeof type)}>
@@ -154,13 +156,14 @@ const HealthPanel = ({ animal, session }: { animal: Animal; session: FarmSession
           <TextInput type="date" value={date} onChange={(event) => setDate(event.target.value)} />
         </div>
         <Button type="button" className="mt-6 w-full bg-red-800 text-white hover:bg-red-900" onClick={() => void save()}>
+          <Syringe size={20} aria-hidden="true" />
           Guardar atención sanitaria
         </Button>
       </Card>
 
       {tasks.length > 0 ? (
         <section>
-          <p className="px-1 text-sm font-bold uppercase tracking-wide text-stone-500">Plan sanitario</p>
+          <p className="flex items-center gap-1.5 px-1 text-sm font-bold uppercase tracking-wide text-stone-500"><ShieldPlus size={16} aria-hidden="true" />Plan sanitario</p>
           <h2 className="mt-1 px-1 text-2xl font-black text-stone-950">Pendientes</h2>
           <div className="mt-3 space-y-3">
             {tasks.map((task) => (
@@ -168,9 +171,9 @@ const HealthPanel = ({ animal, session }: { animal: Animal; session: FarmSession
                 <p className="text-xl font-black text-stone-950">{task.taskType === "brucellosis_vaccination" ? "Vacuna de brucelosis" : task.taskType === "deworming" ? "Curada" : "Prueba anual de brucelosis"}</p>
                 <p className="mt-1 text-base text-stone-600">Programada para {task.dueDate}</p>
                 <div className="mt-4 grid grid-cols-1 gap-2 sm:grid-cols-3">
-                  <Button type="button" className="bg-lime-700 text-white" onClick={() => void updateTask(task, "complete")}>Marcar hecha</Button>
-                  <Button type="button" className="bg-stone-100 text-stone-800" onClick={() => void updateTask(task, "postpone")}>Posponer 7 días</Button>
-                  <Button type="button" className="bg-red-50 text-red-900" onClick={() => void updateTask(task, "ignore")}>Ignorar</Button>
+                  <Button type="button" className="bg-lime-700 text-white" onClick={() => void updateTask(task, "complete")}><Check size={19} aria-hidden="true" />Marcar hecha</Button>
+                  <Button type="button" className="bg-stone-100 text-stone-800" onClick={() => void updateTask(task, "postpone")}><Clock3 size={19} aria-hidden="true" />Posponer 7 días</Button>
+                  <Button type="button" className="bg-red-50 text-red-900" onClick={() => void updateTask(task, "ignore")}><Archive size={19} aria-hidden="true" />Ignorar</Button>
                 </div>
               </Card>
             ))}
@@ -238,7 +241,7 @@ const ReproductionPanel = ({ animal, session }: { animal: Animal; session: FarmS
   return (
     <div className="space-y-5">
       <section className="rounded-3xl bg-lime-800 p-5 text-white shadow-[0_16px_35px_rgba(77,124,15,0.2)] sm:p-6">
-        <p className="text-sm font-bold uppercase tracking-[0.14em] text-lime-100">Estado reproductivo</p>
+        <p className="flex items-center gap-1.5 text-sm font-bold uppercase tracking-[0.14em] text-lime-100"><HeartPulse size={16} aria-hidden="true" />Estado reproductivo</p>
         <p className="mt-2 text-3xl font-black">{reproductiveLabel(state.status)}</p>
         {state.expectedCalvingDate ? <p className="mt-2 text-base font-semibold text-lime-100">Parto estimado: {state.expectedCalvingDate}</p> : null}
       </section>
@@ -248,7 +251,7 @@ const ReproductionPanel = ({ animal, session }: { animal: Animal; session: FarmS
 
       <Card>
         <p className="text-sm font-bold uppercase tracking-wide text-stone-500">Registro rápido</p>
-        <h2 className="mt-1 text-2xl font-black text-stone-950">¿Qué ocurrió?</h2>
+        <h2 className="mt-1 flex items-center gap-2 text-2xl font-black text-stone-950"><ClipboardPenLine size={24} aria-hidden="true" />¿Qué ocurrió?</h2>
         <div className="mt-5 grid grid-cols-2 gap-2 sm:grid-cols-3">
           {eventOptions.map((option) => <Button key={option.value} type="button" aria-pressed={eventType === option.value} className={eventType === option.value ? "bg-lime-700 text-white" : "bg-stone-100 text-stone-800"} onClick={() => setEventType(option.value)}>{option.label}</Button>)}
         </div>
@@ -260,7 +263,7 @@ const ReproductionPanel = ({ animal, session }: { animal: Animal; session: FarmS
         {eventType === "service" ? <div className="mt-5"><FieldLabel>Tipo de servicio</FieldLabel><div className="grid grid-cols-2 gap-3"><Button type="button" aria-pressed={serviceType === "natural"} className={serviceType === "natural" ? "bg-lime-700 text-white" : "bg-stone-100 text-stone-800"} onClick={() => setServiceType("natural")}>Natural</Button><Button type="button" aria-pressed={serviceType === "ai"} className={serviceType === "ai" ? "bg-lime-700 text-white" : "bg-stone-100 text-stone-800"} onClick={() => setServiceType("ai")}>Inseminación</Button></div></div> : null}
         {eventType === "check" ? <div className="mt-5"><FieldLabel>Resultado de la palpación</FieldLabel><div className="grid grid-cols-1 gap-2 sm:grid-cols-3"><Button type="button" aria-pressed={checkResult === "pregnant"} className={checkResult === "pregnant" ? "bg-lime-700 text-white" : "bg-stone-100 text-stone-800"} onClick={() => setCheckResult("pregnant")}>Preñada</Button><Button type="button" aria-pressed={checkResult === "open"} className={checkResult === "open" ? "bg-lime-700 text-white" : "bg-stone-100 text-stone-800"} onClick={() => setCheckResult("open")}>Vacía</Button><Button type="button" aria-pressed={checkResult === "doubtful"} className={checkResult === "doubtful" ? "bg-lime-700 text-white" : "bg-stone-100 text-stone-800"} onClick={() => setCheckResult("doubtful")}>Dudosa</Button></div></div> : null}
         {eventType === "calving" ? <div className="mt-5 space-y-5"><div><FieldLabel>Nombre de la cría</FieldLabel><TextInput value={calfName} onChange={(event) => setCalfName(event.target.value)} placeholder="Ejemplo: Lucera" /></div><div><FieldLabel>Sexo de la cría</FieldLabel><div className="grid grid-cols-2 gap-3"><Button type="button" aria-pressed={calfSex === "female"} className={calfSex === "female" ? "bg-lime-700 text-white" : "bg-stone-100 text-stone-800"} onClick={() => setCalfSex("female")}>Hembra</Button><Button type="button" aria-pressed={calfSex === "male"} className={calfSex === "male" ? "bg-lime-700 text-white" : "bg-stone-100 text-stone-800"} onClick={() => setCalfSex("male")}>Macho</Button></div></div>{calfSex === "female" ? <Notice tone="info">REJO programará su vacuna de brucelosis para dentro de tres meses.</Notice> : null}</div> : null}
-        <Button type="button" className="mt-6 w-full bg-lime-700 text-white hover:bg-lime-800" onClick={() => void save()}>Guardar evento</Button>
+        <Button type="button" className="mt-6 w-full bg-lime-700 text-white hover:bg-lime-800" onClick={() => void save()}><Save size={20} aria-hidden="true" />Guardar evento</Button>
       </Card>
     </div>
   );
@@ -287,7 +290,7 @@ const AnimalEditor = ({ animal, session, onClose, onSaved }: { animal?: Animal; 
     <main className="mx-auto max-w-2xl p-4 pb-10 pt-6 sm:p-6">
       {error ? <div className="mb-5"><Notice tone="error">{error}</Notice></div> : null}
       <Card>
-        {step === 1 ? <><p className="text-base text-stone-600">Empieza con lo esencial. Podrás completar o corregir el resto cuando quieras.</p><div className="mt-6"><FieldLabel>Nombre o apodo</FieldLabel><TextInput autoFocus value={form.name} onChange={(event) => updateForm({ name: event.target.value })} placeholder="Ejemplo: Pintada" /></div><div className="mt-6"><FieldLabel>Sexo <span className="normal-case tracking-normal">(opcional)</span></FieldLabel><div className="grid grid-cols-2 gap-3"><Button type="button" aria-pressed={form.sex === "female"} className={form.sex === "female" ? "bg-lime-700 text-white" : "bg-stone-100 text-stone-800"} onClick={() => updateForm({ sex: "female" })}>Hembra</Button><Button type="button" aria-pressed={form.sex === "male"} className={form.sex === "male" ? "bg-lime-700 text-white" : "bg-stone-100 text-stone-800"} onClick={() => updateForm({ sex: "male" })}>Macho</Button></div></div><Button type="button" className="mt-7 w-full bg-lime-700 text-white" onClick={() => form.name.trim() ? setStep(2) : setError("Escribe al menos el nombre de la vaca.")}>{isEditing ? "Continuar" : "Siguiente"}</Button></> : <><p className="text-base text-stone-600">Este dato es opcional y solo sirve como referencia.</p><div className="mt-6"><FieldLabel>Edad aproximada en meses <span className="normal-case tracking-normal">(opcional)</span></FieldLabel><TextInput autoFocus inputMode="numeric" min="0" type="number" value={form.approximateAgeMonths} onChange={(event) => updateForm({ approximateAgeMonths: event.target.value })} placeholder="Ejemplo: 36" /></div><div className="mt-7 rounded-2xl bg-stone-100 p-4"><p className="text-sm font-bold uppercase tracking-wide text-stone-500">Así quedará registrada</p><p className="mt-1 text-2xl font-black text-stone-950">{form.name}</p><p className="mt-1 text-base text-stone-600">{form.sex === "female" ? "Hembra" : form.sex === "male" ? "Macho" : "Sexo pendiente"}</p></div><div className="mt-6 flex flex-col-reverse gap-3 sm:flex-row"><Button type="button" className="bg-stone-100 text-stone-800" onClick={() => setStep(1)}>Atrás</Button><Button type="button" className="flex-1 bg-lime-700 text-white" onClick={() => void save()}>{isEditing ? "Guardar cambios" : "Guardar vaca"}</Button></div></>}
+        {step === 1 ? <><p className="text-base text-stone-600">Empieza con lo esencial. Podrás completar o corregir el resto cuando quieras.</p><div className="mt-6"><FieldLabel>Nombre o apodo</FieldLabel><TextInput autoFocus value={form.name} onChange={(event) => updateForm({ name: event.target.value })} placeholder="Ejemplo: Pintada" /></div><div className="mt-6"><FieldLabel>Sexo <span className="normal-case tracking-normal">(opcional)</span></FieldLabel><div className="grid grid-cols-2 gap-3"><Button type="button" aria-pressed={form.sex === "female"} className={form.sex === "female" ? "bg-lime-700 text-white" : "bg-stone-100 text-stone-800"} onClick={() => updateForm({ sex: "female" })}>Hembra</Button><Button type="button" aria-pressed={form.sex === "male"} className={form.sex === "male" ? "bg-lime-700 text-white" : "bg-stone-100 text-stone-800"} onClick={() => updateForm({ sex: "male" })}>Macho</Button></div></div><Button type="button" className="mt-7 w-full bg-lime-700 text-white" onClick={() => form.name.trim() ? setStep(2) : setError("Escribe al menos el nombre de la vaca.")}><CirclePlus size={20} aria-hidden="true" />{isEditing ? "Continuar" : "Siguiente"}</Button></> : <><p className="text-base text-stone-600">Este dato es opcional y solo sirve como referencia.</p><div className="mt-6"><FieldLabel>Edad aproximada en meses <span className="normal-case tracking-normal">(opcional)</span></FieldLabel><TextInput autoFocus inputMode="numeric" min="0" type="number" value={form.approximateAgeMonths} onChange={(event) => updateForm({ approximateAgeMonths: event.target.value })} placeholder="Ejemplo: 36" /></div><div className="mt-7 rounded-2xl bg-stone-100 p-4"><p className="text-sm font-bold uppercase tracking-wide text-stone-500">Así quedará registrada</p><p className="mt-1 text-2xl font-black text-stone-950">{form.name}</p><p className="mt-1 text-base text-stone-600">{form.sex === "female" ? "Hembra" : form.sex === "male" ? "Macho" : "Sexo pendiente"}</p></div><div className="mt-6 flex flex-col-reverse gap-3 sm:flex-row"><Button type="button" className="bg-stone-100 text-stone-800" onClick={() => setStep(1)}>Atrás</Button><Button type="button" className="flex-1 bg-lime-700 text-white" onClick={() => void save()}><Save size={20} aria-hidden="true" />{isEditing ? "Guardar cambios" : "Guardar vaca"}</Button></div></>}
       </Card>
     </main>
   </div>;
@@ -299,8 +302,8 @@ const AnimalDetail = ({ animal, session, onClose, onEdit }: { animal: Animal; se
   return <div className={screenShell} role="dialog" aria-modal="true" aria-label={`Ficha de ${animal.name}`}>
     <FullScreenHeader eyebrow="Ficha de la vaca" title={animal.name} onClose={onClose} />
     <main className="mx-auto max-w-2xl p-4 pb-10 pt-6 sm:p-6">
-      <section className="rounded-3xl bg-stone-950 p-5 text-white sm:p-6"><p className="text-base text-stone-300">{sexLabel}{animal.birthDateEstimated ? " · edad estimada" : ""}</p><Button type="button" className="mt-4 bg-white text-stone-950 hover:bg-stone-100" onClick={onEdit}>Editar datos</Button></section>
-      <div className="mt-5 grid grid-cols-2 rounded-2xl bg-stone-200 p-1" role="tablist" aria-label="Secciones de la ficha"><button type="button" role="tab" aria-selected={section === "reproduction"} className={`min-h-12 rounded-xl px-3 text-base font-bold ${section === "reproduction" ? "bg-white text-lime-950 shadow-sm" : "text-stone-600"}`} onClick={() => setSection("reproduction")}>Reproducción</button><button type="button" role="tab" aria-selected={section === "health"} className={`min-h-12 rounded-xl px-3 text-base font-bold ${section === "health" ? "bg-white text-lime-950 shadow-sm" : "text-stone-600"}`} onClick={() => setSection("health")}>Sanidad</button></div>
+      <section className="rounded-3xl bg-stone-950 p-5 text-white sm:p-6"><p className="text-base text-stone-300">{sexLabel}{animal.birthDateEstimated ? " · edad estimada" : ""}</p><Button type="button" className="mt-4 bg-white text-stone-950 hover:bg-stone-100" onClick={onEdit}><Pencil size={19} aria-hidden="true" />Editar datos</Button></section>
+      <div className="mt-5 grid grid-cols-2 rounded-2xl bg-stone-200 p-1" role="tablist" aria-label="Secciones de la ficha"><button type="button" role="tab" aria-selected={section === "reproduction"} className={`flex min-h-12 items-center justify-center gap-1.5 rounded-xl px-3 text-base font-bold ${section === "reproduction" ? "bg-white text-lime-950 shadow-sm" : "text-stone-600"}`} onClick={() => setSection("reproduction")}><HeartPulse size={18} aria-hidden="true" />Reproducción</button><button type="button" role="tab" aria-selected={section === "health"} className={`flex min-h-12 items-center justify-center gap-1.5 rounded-xl px-3 text-base font-bold ${section === "health" ? "bg-white text-lime-950 shadow-sm" : "text-stone-600"}`} onClick={() => setSection("health")}><ShieldPlus size={18} aria-hidden="true" />Sanidad</button></div>
       <div className="mt-5">{section === "reproduction" ? <ReproductionPanel animal={animal} session={session} /> : <HealthPanel animal={animal} session={session} />}</div>
     </main>
   </div>;
@@ -321,10 +324,10 @@ export const AnimalsPage = ({ session }: AnimalsPageProps) => {
   const completeEditor = (nextMessage: string) => { setEditedAnimal(undefined); setIsCreating(false); setMessage(nextMessage); };
 
   return <div className="space-y-5">
-    <div className="px-1"><p className="text-sm font-bold uppercase tracking-[0.16em] text-lime-800">El rejo</p><h1 className="mt-1 text-3xl font-black tracking-tight text-stone-950 sm:text-4xl">Tus vacas</h1><p className="mt-2 max-w-xl text-base text-stone-600">Abre una ficha para registrar lo que pasó o añade una vaca nueva.</p></div>
+    <div className="px-1"><p className="flex items-center gap-1.5 text-sm font-bold uppercase tracking-[0.16em] text-lime-800"><Beef size={16} aria-hidden="true" />El rejo</p><h1 className="mt-1 text-3xl font-black tracking-tight text-stone-950 sm:text-4xl">Tus vacas</h1><p className="mt-2 max-w-xl text-base text-stone-600">Abre una ficha para registrar lo que pasó o añade una vaca nueva.</p></div>
     {message ? <Notice tone="success">{message}</Notice> : null}
-    <Button type="button" className="w-full bg-lime-700 text-white shadow-[0_12px_25px_rgba(77,124,15,0.2)] hover:bg-lime-800" onClick={() => setIsCreating(true)}>Registrar una vaca</Button>
-    {animals.length === 0 ? <Card><p className="text-xl font-black text-stone-950">Aún no hay vacas registradas.</p><p className="mt-2 text-base text-stone-600">Empieza con los nombres que recuerdes. Solo necesitas uno para crear la ficha.</p></Card> : <section><p className="px-1 text-sm font-bold uppercase tracking-wide text-stone-500">{animals.length} {animals.length === 1 ? "vaca registrada" : "vacas registradas"}</p><div className="mt-3 space-y-3">{animals.map((animal) => <Card key={animal.id}><div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between"><div><h2 className="text-2xl font-black text-stone-950">{animal.name}</h2><p className="mt-1 text-base text-stone-600">{animal.sex === "female" ? "Hembra" : animal.sex === "male" ? "Macho" : "Sexo pendiente"}{animal.birthDateEstimated ? " · edad estimada" : ""}</p></div><div className="grid grid-cols-2 gap-2 sm:flex"><Button type="button" className="bg-lime-100 text-lime-950" onClick={() => setSelectedAnimal(animal)}>Abrir ficha</Button><Button type="button" className="bg-stone-100 text-stone-800" onClick={() => setEditedAnimal(animal)}>Editar</Button><Button type="button" className="col-span-2 bg-red-50 text-red-900 sm:col-auto" onClick={() => void remove(animal)}>Sacar de la lista</Button></div></div></Card>)}</div></section>}
+    <Button type="button" className="w-full bg-lime-700 text-white shadow-[0_12px_25px_rgba(77,124,15,0.2)] hover:bg-lime-800" onClick={() => setIsCreating(true)}><CirclePlus size={20} aria-hidden="true" />Registrar una vaca</Button>
+    {animals.length === 0 ? <Card><p className="text-xl font-black text-stone-950">Aún no hay vacas registradas.</p><p className="mt-2 text-base text-stone-600">Empieza con los nombres que recuerdes. Solo necesitas uno para crear la ficha.</p></Card> : <section><p className="px-1 text-sm font-bold uppercase tracking-wide text-stone-500">{animals.length} {animals.length === 1 ? "vaca registrada" : "vacas registradas"}</p><div className="mt-3 space-y-3">{animals.map((animal) => <Card key={animal.id}><div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between"><div><h2 className="text-2xl font-black text-stone-950">{animal.name}</h2><p className="mt-1 text-base text-stone-600">{animal.sex === "female" ? "Hembra" : animal.sex === "male" ? "Macho" : "Sexo pendiente"}{animal.birthDateEstimated ? " · edad estimada" : ""}</p></div><div className="grid grid-cols-2 gap-2 sm:flex"><Button type="button" className="bg-lime-100 text-lime-950" onClick={() => setSelectedAnimal(animal)}><FolderOpen size={19} aria-hidden="true" />Abrir ficha</Button><Button type="button" className="bg-stone-100 text-stone-800" onClick={() => setEditedAnimal(animal)}><Pencil size={19} aria-hidden="true" />Editar</Button><Button type="button" className="col-span-2 bg-red-50 text-red-900 sm:col-auto" onClick={() => void remove(animal)}><Archive size={19} aria-hidden="true" />Sacar de la lista</Button></div></div></Card>)}</div></section>}
     {selectedAnimal ? <AnimalDetail animal={selectedAnimal} session={session} onClose={() => setSelectedAnimal(undefined)} onEdit={() => { setEditedAnimal(selectedAnimal); setSelectedAnimal(undefined); }} /> : null}
     {isCreating ? <AnimalEditor session={session} onClose={() => setIsCreating(false)} onSaved={completeEditor} /> : null}
     {editedAnimal ? <AnimalEditor animal={editedAnimal} session={session} onClose={() => setEditedAnimal(undefined)} onSaved={completeEditor} /> : null}

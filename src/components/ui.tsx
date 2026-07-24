@@ -1,4 +1,5 @@
 import { forwardRef, type ButtonHTMLAttributes, type InputHTMLAttributes, type PropsWithChildren } from "react";
+import { CircleAlert, CircleCheck, Info, TriangleAlert } from "lucide-react";
 
 export const Card = ({ children }: PropsWithChildren) => (
   <section className="rounded-3xl border border-stone-200/80 bg-white p-5 shadow-[0_8px_28px_rgba(28,25,23,0.06)] sm:p-6">{children}</section>
@@ -11,7 +12,7 @@ export const Button = ({
 }: PropsWithChildren<ButtonHTMLAttributes<HTMLButtonElement>>) => (
   <button
     className={
-      "min-h-12 rounded-2xl px-4 py-3 text-base font-bold transition active:scale-[0.98] focus:outline-none focus:ring-4 focus:ring-lime-300 disabled:cursor-not-allowed disabled:opacity-50 sm:px-5 sm:text-lg " +
+      "inline-flex min-h-12 items-center justify-center gap-2 rounded-2xl px-4 py-3 text-base font-bold transition active:scale-[0.98] focus:outline-none focus:ring-4 focus:ring-lime-300 disabled:cursor-not-allowed disabled:opacity-50 sm:px-5 sm:text-lg " +
       className
     }
     {...props}
@@ -49,6 +50,13 @@ export const Notice = ({
     success: "bg-lime-50 text-lime-950 ring-lime-200",
     error: "bg-red-50 text-red-950 ring-red-200"
   };
+  const iconByTone = {
+    info: Info,
+    warning: TriangleAlert,
+    success: CircleCheck,
+    error: CircleAlert
+  };
+  const Icon = iconByTone[tone];
 
-  return <div className={"rounded-2xl p-3 text-base leading-snug ring-1 " + colorByTone[tone]}>{children}</div>;
+  return <div className={"flex gap-2 rounded-2xl p-3 text-base leading-snug ring-1 " + colorByTone[tone]}><Icon className="mt-0.5 shrink-0" size={20} aria-hidden="true" /><div>{children}</div></div>;
 };
