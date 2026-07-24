@@ -4,7 +4,7 @@ import type { Session } from "@supabase/supabase-js";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
-import { AlertTriangle, BadgeDollarSign, Beef, ChartNoAxesCombined, ClipboardPenLine, CloudUpload, Droplets, House, Milk, Settings, TrendingDown, TrendingUp } from "lucide-react";
+import { AlertTriangle, BadgeDollarSign, Beef, ChartNoAxesCombined, ClipboardPenLine, CloudUpload, House, Milk, Settings, TrendingDown, TrendingUp } from "lucide-react";
 import { Button, Card, FieldLabel, Notice, TextInput } from "@/components/ui";
 import { provisionFarm, readFarmSession } from "@/db/bootstrap";
 import { db } from "@/db/rejo-db";
@@ -201,14 +201,13 @@ interface NavigationProps {
 const Navigation = ({ currentPage, onNavigate }: NavigationProps) => {
   const links = [
     { page: "home" as const, label: "Inicio", icon: House },
-    { page: "capture" as const, label: "Anotar", icon: Droplets },
     { page: "animals" as const, label: "Mis vacas", icon: Beef },
     { page: "finance" as const, label: "Finanzas", icon: BadgeDollarSign },
     { page: "settings" as const, label: "Ajustes", icon: Settings }
   ];
 
   return (
-    <nav className="sticky bottom-0 grid grid-cols-5 gap-1 border-t border-stone-200/80 bg-white/95 p-2 pb-[max(0.5rem,env(safe-area-inset-bottom))] backdrop-blur">
+    <nav className="sticky bottom-0 grid grid-cols-4 gap-1 border-t border-stone-200/80 bg-white/95 p-2 pb-[max(0.5rem,env(safe-area-inset-bottom))] backdrop-blur">
       {links.map((link) => (
         <button
           className={
