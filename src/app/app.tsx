@@ -6,7 +6,7 @@ import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { AlertTriangle, BadgeDollarSign, Beef, ChartNoAxesCombined, CircleCheck, ClipboardPenLine, CloudUpload, House, Menu, Milk, Sprout, TrendingDown, TrendingUp } from "lucide-react";
 import { Button, Card, FieldLabel, Notice, TextInput } from "@/components/ui";
-import { provisionFarm, readFarmSession } from "@/db/bootstrap";
+import { provisionFarm, readFarmSession, saveFarmSession } from "@/db/bootstrap";
 import { db } from "@/db/rejo-db";
 import { nowInFarmTimezone } from "@/domain/time";
 import type { FarmSession } from "@/domain/models";
@@ -23,6 +23,7 @@ import { MilkControlPage } from "@/features/milk-control/milk-control-page";
 import { HerdHubPage, MorePage } from "@/features/navigation/operational-hubs";
 import { pullFarmChanges, syncPendingOperations, type SyncStatus } from "@/sync/sync-service";
 import { isSupabaseConfigured, supabase } from "@/sync/supabase";
+import { resolveRemoteFarmSession, type RemoteFarmSessionResult } from "@/sync/farm-session";
 
 type Page = "home" | "capture" | "herd" | "animals" | "reproduction" | "health" | "finance" | "paddocks" | "milk-control" | "more" | "settings";
 const farmProvisionSchema = z.object({
@@ -442,6 +443,9 @@ const SupabaseSignInPage = () => {
 const ConfiguredApp = () => {
   const [authSession, setAuthSession] = useState<Session | null | undefined>(undefined);
   const [farmSession, setFarmSession] = useState<FarmSession | null>(() => readFarmSession());
+  const [farmLookup, setFarmLookup] = useState<RemoteFarmSessionResult | { state: "loading" }>();
+  const [farmLookupAttempt, setFarmLookupAttempt] = useState(0);
+  const authUserId = authSession?.user.id;
 
   useEffect(() => {
     if (!supabase) {
@@ -456,6 +460,54 @@ const ConfiguredApp = () => {
     return () => data.subscription.unsubscribe();
   }, []);
 
+  useEffect(() => {
+    const configuredSupabase = supabase;
+    if (!authUserId || !configuredSupabase) {
+      return;
+    }
+
+    const storedSession = readFarmSession();
+    if (storedSession?.userId === authUserId) {
+      setFarmSession(storedSession);
+      setFarmLookup({ state: "found", session: storedSession });
+      return;
+    }
+
+    let cancelled = false;
+    setFarmSession(null);
+    setFarmLookup({ state: "loading" });
+
+    void resolveRemoteFarmSession(authUserId, async (userId) => {
+      const { data, error } = await configuredSupabase
+        .from("farm_members")
+        .select("farm_id, role")
+        .eq("user_id", userId)
+        .order("created_at", { ascending: true })
+        .limit(1)
+        .maybeSingle();
+
+      if (error) {
+        throw new Error(error.message);
+      }
+
+      return data ? { farmId: data.farm_id, role: data.role } : null;
+    }).then((result) => {
+      if (cancelled) {
+        return;
+      }
+
+      setFarmLookup(result);
+      if (result.state === "found") {
+        saveFarmSession(result.session);
+        setFarmSession(result.session);
+      }
+    });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [authUserId, farmLookupAttempt]);
+
   if (authSession === undefined) {
     return <main className="p-5"><Notice tone="info">Preparando el acceso…</Notice></main>;
   }
@@ -465,6 +517,14 @@ const ConfiguredApp = () => {
   }
 
   const belongsToSignedInUser = farmSession?.userId === authSession.user.id;
+  if ((!farmLookup && !belongsToSignedInUser) || farmLookup?.state === "loading") {
+    return <main className="p-5"><Notice tone="info">Buscando tu fincaâ€¦</Notice></main>;
+  }
+
+  if (farmLookup?.state === "failed") {
+    return <main className="mx-auto max-w-xl p-5"><Notice tone="error">No se pudo abrir la finca: {farmLookup.message}</Notice><Button type="button" className="mt-4 bg-lime-700 text-white" onClick={() => setFarmLookupAttempt((current) => current + 1)}>Reintentar</Button></main>;
+  }
+
   if (!farmSession || !belongsToSignedInUser) {
     return (
       <ProvisioningPage

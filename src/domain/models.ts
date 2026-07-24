@@ -309,5 +309,7 @@ export interface SyncQueueItem {
 export interface FarmSession {
   farmId: EntityId;
   userId: EntityId;
-  role: "admin" | "owner";
+  role: FarmMemberRole;
 }
+
+export type FarmMemberRole = "admin" | "owner" | "worker" | "advisor";
