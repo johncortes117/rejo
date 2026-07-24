@@ -14,7 +14,15 @@ export default defineConfig({
         description: "Gestión local-first para una finca lechera.",
         theme_color: "#14532d",
         background_color: "#f7fee7",
-        display: "standalone"
+        display: "standalone",
+        icons: [
+          {
+            src: "/rejo-icon.svg",
+            sizes: "any",
+            type: "image/svg+xml",
+            purpose: "any maskable"
+          }
+        ]
       },
       workbox: {
         navigateFallback: "/index.html"
