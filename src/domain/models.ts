@@ -46,6 +46,7 @@ export interface Animal extends RecordMeta {
   birthDate?: string;
   birthDateEstimated: boolean;
   photoUrl?: string;
+  motherId?: EntityId;
   status: "active" | "sold" | "dead" | "culled";
 }
 
@@ -140,6 +141,17 @@ export interface HealthEvent extends RecordMeta {
   notes?: string;
 }
 
+export interface HealthPlanTask extends RecordMeta {
+  animalId?: EntityId;
+  category?: "calf" | "heifer" | "cow";
+  taskType: "brucellosis_vaccination" | "deworming" | "annual_brucellosis_test";
+  dueDate: string;
+  completedAt?: string;
+  ignoredAt?: string;
+  recurrenceDays?: number;
+  isTemplate: boolean;
+}
+
 export type SyncOperation = "upsert" | "soft_delete";
 
 export interface SyncQueueItem {
@@ -157,7 +169,8 @@ export interface SyncQueueItem {
     | "pregnancy_checks"
     | "calvings"
     | "dry_offs"
-    | "health_events";
+    | "health_events"
+    | "health_plan_tasks";
   entityId: EntityId;
   operation: SyncOperation;
   payload: Record<string, unknown>;

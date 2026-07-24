@@ -15,7 +15,8 @@ const remoteTableNames: Record<SyncQueueItem["entityTable"], string> = {
   pregnancy_checks: "pregnancy_checks",
   calvings: "calvings",
   dry_offs: "dry_offs",
-  health_events: "health_events"
+  health_events: "health_events",
+  health_plan_tasks: "health_plan_tasks"
 };
 
 const camelToSnake: Record<string, string> = {
@@ -51,7 +52,14 @@ const camelToSnake: Record<string, string> = {
   expectedCalvingDate: "expected_calving_date",
   productName: "product_name",
   activeIngredient: "active_ingredient",
-  milkWithdrawalHours: "milk_withdrawal_hours"
+  milkWithdrawalHours: "milk_withdrawal_hours",
+  motherId: "mother_id",
+  dueDate: "due_date",
+  completedAt: "completed_at",
+  ignoredAt: "ignored_at",
+  recurrenceDays: "recurrence_days",
+  isTemplate: "is_template",
+  taskType: "task_type"
 };
 
 const snakeToCamel = Object.fromEntries(
@@ -80,7 +88,8 @@ type LocalTableKey =
   | "pregnancyChecks"
   | "calvings"
   | "dryOffs"
-  | "healthEvents";
+  | "healthEvents"
+  | "healthPlanTasks";
 
 const localTableKeys: Record<SyncQueueItem["entityTable"], LocalTableKey> = {
   farms: "farms",
@@ -94,7 +103,8 @@ const localTableKeys: Record<SyncQueueItem["entityTable"], LocalTableKey> = {
   pregnancy_checks: "pregnancyChecks",
   calvings: "calvings",
   dry_offs: "dryOffs",
-  health_events: "healthEvents"
+  health_events: "healthEvents",
+  health_plan_tasks: "healthPlanTasks"
 };
 
 const getTable = (

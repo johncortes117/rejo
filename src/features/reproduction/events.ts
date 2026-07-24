@@ -1,5 +1,5 @@
 import { createUuidV7 } from "@/domain/ids";
-import type { Heat, PregnancyCheck, Service } from "@/domain/models";
+import type { Animal, Calving, DryOff, HealthPlanTask, Heat, PregnancyCheck, Service } from "@/domain/models";
 import { queueUpsert } from "@/db/outbox";
 import type { RejoDb } from "@/db/rejo-db";
 
@@ -90,4 +90,98 @@ export const recordPregnancyCheck = async (
   });
 
   return check;
+};
+
+const addDays = (date: string, days: number): string => {
+  const [year, month, day] = date.split("-").map(Number);
+  return new Date(Date.UTC(year, month - 1, day + days)).toISOString().slice(0, 10);
+};
+
+export const recordCalving = async (
+  database: RejoDb,
+  input: EventInput & { calfName: string; calfSex: "female" | "male" },
+  now = new Date()
+): Promise<{ calving: Calving; calf: Animal; task?: HealthPlanTask }> => {
+  const calfName = input.calfName.trim();
+  if (!calfName) {
+    throw new Error("Escribe el nombre de la cría.");
+  }
+
+  const timestamp = now.toISOString();
+  const calf: Animal = {
+    id: createUuidV7(now.getTime()),
+    farmId: input.farmId,
+    name: calfName,
+    sex: input.calfSex,
+    birthDate: input.date,
+    birthDateEstimated: false,
+    motherId: input.animalId,
+    status: "active",
+    createdAt: timestamp,
+    updatedAt: timestamp,
+    createdBy: input.userId
+  };
+  const calving: Calving = {
+    id: createUuidV7(now.getTime() + 1),
+    farmId: input.farmId,
+    animalId: input.animalId,
+    date: input.date,
+    type: "normal",
+    outcome: "live",
+    calfIds: [calf.id],
+    createdAt: timestamp,
+    updatedAt: timestamp,
+    createdBy: input.userId
+  };
+  const task: HealthPlanTask | undefined = input.calfSex === "female" ? {
+    id: createUuidV7(now.getTime() + 2),
+    farmId: input.farmId,
+    animalId: calf.id,
+    category: "calf",
+    taskType: "brucellosis_vaccination",
+    dueDate: addDays(input.date, 90),
+    isTemplate: false,
+    createdAt: timestamp,
+    updatedAt: timestamp,
+    createdBy: input.userId
+  } : undefined;
+
+  await database.transaction("rw", database.animals, database.calvings, database.healthPlanTasks, database.syncQueue, async () => {
+    await database.animals.put(calf);
+    await database.calvings.put(calving);
+    await database.syncQueue.bulkPut([
+      queueUpsert(calf.farmId, "animals", calf.id, asPayload(calf), timestamp),
+      queueUpsert(calving.farmId, "calvings", calving.id, asPayload(calving), timestamp),
+      ...(task ? [queueUpsert(task.farmId, "health_plan_tasks", task.id, asPayload(task), timestamp)] : [])
+    ]);
+    if (task) {
+      await database.healthPlanTasks.put(task);
+    }
+  });
+
+  return { calving, calf, task };
+};
+
+export const recordDryOff = async (
+  database: RejoDb,
+  input: EventInput,
+  now = new Date()
+): Promise<DryOff> => {
+  const timestamp = now.toISOString();
+  const dryOff: DryOff = {
+    id: createUuidV7(now.getTime()),
+    farmId: input.farmId,
+    animalId: input.animalId,
+    date: input.date,
+    createdAt: timestamp,
+    updatedAt: timestamp,
+    createdBy: input.userId
+  };
+
+  await database.transaction("rw", database.dryOffs, database.syncQueue, async () => {
+    await database.dryOffs.put(dryOff);
+    await database.syncQueue.put(queueUpsert(dryOff.farmId, "dry_offs", dryOff.id, asPayload(dryOff), timestamp));
+  });
+
+  return dryOff;
 };
