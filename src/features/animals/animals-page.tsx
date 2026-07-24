@@ -273,7 +273,7 @@ const ReproductionPanel = ({ animal, session }: { animal: Animal; session: FarmS
   );
 };
 
-const AnimalEditor = ({ animal, groups, defaultGroupId, session, onClose, onSaved }: { animal?: Animal; groups: HerdGroup[]; defaultGroupId?: string; session: FarmSession; onClose: () => void; onSaved: (message: string) => void }) => {
+export const AnimalEditor = ({ animal, groups, defaultGroupId, session, onClose, onSaved }: { animal?: Animal; groups: HerdGroup[]; defaultGroupId?: string; session: FarmSession; onClose: () => void; onSaved: (message: string) => void }) => {
   const [form, setForm] = useState<AnimalFormState>({ ...(animal ? toFormState(animal) : emptyForm), herdGroupId: animal?.herdGroupId ?? defaultGroupId });
   const [step, setStep] = useState(1);
   const [error, setError] = useState<string>();
@@ -300,7 +300,7 @@ const AnimalEditor = ({ animal, groups, defaultGroupId, session, onClose, onSave
   </div>;
 };
 
-const AnimalDetail = ({ animal, groups, session, onClose, onEdit }: { animal: Animal; groups: HerdGroup[]; session: FarmSession; onClose: () => void; onEdit: () => void }) => {
+export const AnimalDetail = ({ animal, groups, session, onClose, onEdit }: { animal: Animal; groups: HerdGroup[]; session: FarmSession; onClose: () => void; onEdit: () => void }) => {
   const [section, setSection] = useState<DetailSection>("general");
   const sexLabel = animal.sex === "female" ? "Hembra" : animal.sex === "male" ? "Macho" : "Sexo pendiente";
   const groupName = groups.find((group) => group.id === animal.herdGroupId)?.name ?? groups[0]?.name ?? "Sin grupo";

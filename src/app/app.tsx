@@ -10,7 +10,7 @@ import { provisionFarm, readFarmSession } from "@/db/bootstrap";
 import { db } from "@/db/rejo-db";
 import { nowInFarmTimezone } from "@/domain/time";
 import type { FarmSession } from "@/domain/models";
-import { AnimalsPage } from "@/features/animals/animals-page";
+import { AnimalsBrowserPage } from "@/features/animals/animals-browser-page";
 import { MilkCapturePage } from "@/features/milk/milk-capture-page";
 import { getMilkDashboard } from "@/features/milk/dashboard";
 import { getDecisionDashboard, type MilkTrendPoint } from "@/features/insights/decision-dashboard";
@@ -279,7 +279,7 @@ const AppShell = ({ session }: { session: FarmSession }) => {
       <main className="flex-1 p-4 pb-6 pt-6 sm:p-6">
         {page === "home" ? <HomePage session={session} onCapture={() => setPage("capture")} onPaddocks={() => setPage("paddocks")} /> : null}
         {page === "capture" ? <MilkCapturePage session={session} onSaved={() => setPage("home")} /> : null}
-        {page === "animals" ? <AnimalsPage session={session} onMilkControl={() => setPage("milk-control")} /> : null}
+        {page === "animals" ? <AnimalsBrowserPage session={session} onMilkControl={() => setPage("milk-control")} /> : null}
         {page === "finance" ? <SettlementsPage session={session} /> : null}
         {page === "paddocks" ? <PaddocksPage session={session} onBack={() => setPage("home")} /> : null}
         {page === "milk-control" ? <MilkControlPage session={session} onBack={() => setPage("animals")} /> : null}
