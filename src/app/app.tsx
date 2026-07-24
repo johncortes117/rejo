@@ -4,7 +4,7 @@ import type { Session } from "@supabase/supabase-js";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
-import { Beef, ClipboardPenLine, CloudUpload, Droplets, House, Milk, Settings } from "lucide-react";
+import { AlertTriangle, Beef, ChartNoAxesCombined, ClipboardPenLine, CloudUpload, Droplets, House, Milk, Settings, TrendingDown, TrendingUp } from "lucide-react";
 import { Button, Card, FieldLabel, Notice, TextInput } from "@/components/ui";
 import { provisionFarm, readFarmSession } from "@/db/bootstrap";
 import { db } from "@/db/rejo-db";
@@ -13,6 +13,7 @@ import type { FarmSession } from "@/domain/models";
 import { AnimalsPage } from "@/features/animals/animals-page";
 import { MilkCapturePage } from "@/features/milk/milk-capture-page";
 import { getMilkDashboard } from "@/features/milk/dashboard";
+import { getDecisionDashboard, type MilkTrendPoint } from "@/features/insights/decision-dashboard";
 import { SettingsPage } from "@/features/settings/settings-page";
 import { pullFarmChanges, syncPendingOperations, type SyncStatus } from "@/sync/sync-service";
 import { isSupabaseConfigured, supabase } from "@/sync/supabase";
@@ -119,9 +120,29 @@ interface HomePageProps {
   onCapture: () => void;
 }
 
+const MilkTrendChart = ({ points }: { points: MilkTrendPoint[] }) => {
+  if (points.length < 2) {
+    return <p className="text-base text-stone-600">Sigue anotando la medida diaria para ver la tendencia.</p>;
+  }
+  const values = points.map((point) => point.liters);
+  const minimum = Math.min(...values);
+  const maximum = Math.max(...values);
+  const range = maximum - minimum || 1;
+  const coordinates = points.map((point, index) => {
+    const x = 12 + (index / (points.length - 1)) * 296;
+    const y = 100 - ((point.liters - minimum) / range) * 76;
+    return `${x},${y}`;
+  }).join(" ");
+  return <svg className="h-32 w-full overflow-visible" viewBox="0 0 320 112" role="img" aria-label={`Tendencia de ${points.length} medidas del tanque, entre ${minimum.toFixed(1)} y ${maximum.toFixed(1)} litros`}><line x1="12" x2="308" y1="100" y2="100" stroke="currentColor" strokeOpacity="0.15" /><polyline points={coordinates} fill="none" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="4" /><circle cx={coordinates.split(" ").at(-1)?.split(",")[0]} cy={coordinates.split(" ").at(-1)?.split(",")[1]} fill="currentColor" r="5" /></svg>;
+};
+
 const HomePage = ({ session, onCapture }: HomePageProps) => {
   const { date } = nowInFarmTimezone();
+  const [trendPeriod, setTrendPeriod] = useState<7 | 30>(7);
   const dashboard = useLiveQuery(() => getMilkDashboard(db, session.farmId, date), [session.farmId, date]);
+  const decisions = useLiveQuery(() => getDecisionDashboard(db, session.farmId, date), [session.farmId, date]);
+  const trend = decisions?.trend.slice(-trendPeriod) ?? [];
+  const directionLabel = decisions?.trendDirection === "down" ? "Bajando frente a los días anteriores" : decisions?.trendDirection === "up" ? "Subiendo frente a los días anteriores" : decisions?.trendDirection === "steady" ? "Se mantiene estable" : "Aún no hay tendencia suficiente";
 
   return (
     <div className="space-y-6">
@@ -150,6 +171,22 @@ const HomePage = ({ session, onCapture }: HomePageProps) => {
           {dashboard?.sevenDayAverage === undefined ? "Aún no sabemos" : dashboard.sevenDayAverage.toFixed(1) + " L"}
         </p>
         <p className="mt-1 text-base text-stone-600">Promedio de los últimos 7 días.</p>
+      </Card>
+
+      <section>
+        <div className="flex items-end justify-between gap-3 px-1">
+          <div><p className="flex items-center gap-1.5 text-sm font-bold uppercase tracking-wide text-stone-500"><AlertTriangle size={16} aria-hidden="true" />Atención hoy</p><h2 className="mt-1 text-2xl font-black text-stone-950">Lo que requiere revisión</h2></div>
+          {decisions?.alerts.length ? <span className="rounded-full bg-amber-100 px-3 py-1 text-sm font-bold text-amber-950">{decisions.alerts.length}</span> : null}
+        </div>
+        <div className="mt-3 space-y-3">
+          {decisions === undefined ? <Notice tone="info">Revisando los registros guardados en el celular…</Notice> : decisions.alerts.length === 0 ? <Notice tone="success">No hay alertas que requieran atención hoy.</Notice> : decisions.alerts.slice(0, 4).map((alert) => <Notice key={alert.id} tone={alert.tone === "critical" ? "error" : alert.tone === "attention" ? "warning" : "info"}><strong>{alert.title}</strong><br />{alert.detail}</Notice>)}
+        </div>
+      </section>
+
+      <Card>
+        <div className="flex items-start justify-between gap-4"><div><p className="flex items-center gap-1.5 text-sm font-bold uppercase tracking-wide text-stone-500"><ChartNoAxesCombined size={16} aria-hidden="true" />Tendencia de leche</p><h2 className="mt-1 text-2xl font-black text-stone-950">Medida del tanque</h2></div><div className="grid grid-cols-2 rounded-xl bg-stone-100 p-1"><button type="button" aria-pressed={trendPeriod === 7} className={`min-h-10 rounded-lg px-3 text-sm font-bold ${trendPeriod === 7 ? "bg-white text-lime-950 shadow-sm" : "text-stone-600"}`} onClick={() => setTrendPeriod(7)}>7 días</button><button type="button" aria-pressed={trendPeriod === 30} className={`min-h-10 rounded-lg px-3 text-sm font-bold ${trendPeriod === 30 ? "bg-white text-lime-950 shadow-sm" : "text-stone-600"}`} onClick={() => setTrendPeriod(30)}>30 días</button></div></div>
+        <div className="mt-5 text-lime-800"><MilkTrendChart points={trend} /></div>
+        <div className="mt-2 flex items-center gap-2 text-base font-semibold text-stone-700">{decisions?.trendDirection === "down" ? <TrendingDown size={20} className="text-amber-700" aria-hidden="true" /> : <TrendingUp size={20} className="text-lime-700" aria-hidden="true" />}{directionLabel}</div>
       </Card>
     </div>
   );
