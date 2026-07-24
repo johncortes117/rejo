@@ -88,7 +88,7 @@ export const AnimalsPage = ({ session }: AnimalsPageProps) => {
 
       <Card>
         <h2 className="text-2xl font-black">{form.id ? "Corregir vaca" : "Agregar una vaca"}</h2>
-        <p className="mt-1 text-base text-stone-700">Solo el nombre es obligatorio.</p>
+        <p className="mt-1 text-lg text-stone-700">Solo el nombre es obligatorio.</p>
 
         <div className="mt-5">
           <FieldLabel>Nombre</FieldLabel>
@@ -129,7 +129,7 @@ export const AnimalsPage = ({ session }: AnimalsPageProps) => {
             onChange={(event) => updateForm({ approximateAgeMonths: event.target.value })}
             placeholder="Ejemplo: 36"
           />
-          <p className="mt-2 text-base text-stone-600">La guardamos como una estimación, no como fecha segura.</p>
+          <p className="mt-2 text-lg text-stone-600">La guardamos como una estimación, no como fecha segura.</p>
         </div>
 
         <div className="mt-6 flex flex-col gap-3 sm:flex-row">
@@ -153,7 +153,7 @@ export const AnimalsPage = ({ session }: AnimalsPageProps) => {
               <div className="flex items-center justify-between gap-4">
                 <div>
                   <h2 className="text-2xl font-black text-stone-950">{animal.name}</h2>
-                  <p className="text-base text-stone-700">
+                  <p className="text-lg text-stone-700">
                     {animal.sex === "female" ? "Hembra" : animal.sex === "male" ? "Macho" : "Sexo pendiente"}
                     {animal.birthDateEstimated ? " · edad estimada" : ""}
                   </p>
@@ -161,14 +161,14 @@ export const AnimalsPage = ({ session }: AnimalsPageProps) => {
                 <div className="flex gap-2">
                   <Button
                     type="button"
-                    className="bg-stone-100 text-base text-stone-800"
+                    className="bg-stone-100 text-lg text-stone-800"
                     onClick={() => setForm(toFormState(animal))}
                   >
                     Corregir
                   </Button>
                   <Button
                     type="button"
-                    className="bg-red-50 text-base text-red-900"
+                    className="bg-red-50 text-lg text-red-900"
                     onClick={() => void remove(animal)}
                   >
                     Sacar

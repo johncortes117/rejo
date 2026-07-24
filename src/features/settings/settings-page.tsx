@@ -130,7 +130,7 @@ export const SettingsPage = ({ session }: SettingsPageProps) => {
 
       <Card>
         <h2 className="text-2xl font-black">Tabla de aforo del tanque</h2>
-        <p className="mt-1 text-base text-stone-700">
+        <p className="mt-1 text-lg text-stone-700">
           Si todavía no tienes la tabla, no pasa nada: sigue anotando en litros.
         </p>
         <Notice tone="info">

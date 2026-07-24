@@ -88,7 +88,7 @@ const ProvisioningPage = ({ onProvisioned, userId }: ProvisioningPageProps) => {
             placeholder="Ejemplo: Finca El Capulí"
             {...register("farmName")}
           />
-          {errors.farmName ? <p className="mt-2 text-base text-red-800">{errors.farmName.message}</p> : null}
+          {errors.farmName ? <p className="mt-2 text-lg text-red-800">{errors.farmName.message}</p> : null}
         </div>
 
         <div className="mt-5">
@@ -170,7 +170,7 @@ const Navigation = ({ currentPage, onNavigate }: NavigationProps) => {
       {links.map((link) => (
         <button
           className={
-            "min-h-12 rounded-lg px-2 text-sm font-bold " +
+            "min-h-12 rounded-lg px-2 text-lg font-bold " +
             (currentPage === link.page ? "bg-lime-700 text-white" : "text-stone-700")
           }
           key={link.page}
@@ -213,11 +213,11 @@ const AppShell = ({ session }: { session: FarmSession }) => {
       <header className="flex items-center justify-between gap-3 bg-lime-950 px-5 py-4 text-white">
         <div>
           <p className="text-2xl font-black">REJO</p>
-          <p className="text-sm text-lime-100">{syncMessage(syncStatus, pendingCount)}</p>
+          <p className="text-lg text-lime-100">{syncMessage(syncStatus, pendingCount)}</p>
         </div>
         {pendingCount > 0 ? (
           <button
-            className="min-h-12 rounded-lg bg-lime-800 px-3 text-sm font-bold"
+            className="min-h-12 rounded-lg bg-lime-800 px-3 text-lg font-bold"
             type="button"
             onClick={() => void sync()}
           >

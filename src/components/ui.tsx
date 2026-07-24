@@ -50,5 +50,5 @@ export const Notice = ({
     error: "bg-red-50 text-red-950 ring-red-200"
   };
 
-  return <div className={"rounded-xl p-4 text-base ring-1 " + colorByTone[tone]}>{children}</div>;
+  return <div className={"rounded-xl p-4 text-lg ring-1 " + colorByTone[tone]}>{children}</div>;
 };
