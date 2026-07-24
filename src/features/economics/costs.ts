@@ -31,3 +31,23 @@ export const recordTransaction = async (database: RejoDb, input: Omit<Transactio
   await database.transaction("rw", database.transactions, database.syncQueue, async () => { await database.transactions.put(transaction); await database.syncQueue.put(queueUpsert(transaction.farmId, "transactions", transaction.id, transaction as unknown as Record<string, unknown>, timestamp)); });
   return transaction;
 };
+
+export const recordAsset = async (database: RejoDb, input: Omit<Asset, "id" | "createdAt" | "updatedAt" | "createdBy"> & { userId: string }, now = new Date()): Promise<Asset> => {
+  if (!input.name.trim() || !input.category.trim()) throw new Error("Describe el activo.");
+  if (!Number.isFinite(input.purchaseValue) || input.purchaseValue <= 0) throw new Error("Escribe el valor de compra.");
+  if (!Number.isInteger(input.usefulLifeYears) || input.usefulLifeYears <= 0) throw new Error("Escribe años de vida útil válidos.");
+  if (!Number.isFinite(input.salvageValue) || input.salvageValue < 0) throw new Error("Revisa el valor de rescate.");
+  const timestamp = now.toISOString();
+  const asset: Asset = { id: createUuidV7(now.getTime()), farmId: input.farmId, name: input.name.trim(), category: input.category.trim(), purchaseDate: input.purchaseDate, purchaseValue: input.purchaseValue, usefulLifeYears: input.usefulLifeYears, salvageValue: input.salvageValue, createdAt: timestamp, updatedAt: timestamp, createdBy: input.userId };
+  await database.transaction("rw", database.assets, database.syncQueue, async () => { await database.assets.put(asset); await database.syncQueue.put(queueUpsert(asset.farmId, "assets", asset.id, asset as unknown as Record<string, unknown>, timestamp)); });
+  return asset;
+};
+
+export const recordLabor = async (database: RejoDb, input: Omit<LaborRecord, "id" | "createdAt" | "updatedAt" | "createdBy"> & { userId: string }, now = new Date()): Promise<LaborRecord> => {
+  if (!input.workerName.trim()) throw new Error("Identifica el trabajo registrado.");
+  if (!Number.isFinite(input.rate) || input.rate < 0 || !Number.isFinite(input.daysWorked) || input.daysWorked < 0) throw new Error("Revisa el valor y los días trabajados.");
+  const timestamp = now.toISOString();
+  const labor: LaborRecord = { id: createUuidV7(now.getTime()), farmId: input.farmId, workerName: input.workerName.trim(), type: input.type, rate: input.rate, daysWorked: input.daysWorked, period: input.period, createdAt: timestamp, updatedAt: timestamp, createdBy: input.userId };
+  await database.transaction("rw", database.labor, database.syncQueue, async () => { await database.labor.put(labor); await database.syncQueue.put(queueUpsert(labor.farmId, "labor", labor.id, labor as unknown as Record<string, unknown>, timestamp)); });
+  return labor;
+};
