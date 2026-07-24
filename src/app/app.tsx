@@ -122,32 +122,32 @@ const HomePage = ({ session, onCapture }: HomePageProps) => {
   const dashboard = useLiveQuery(() => getMilkDashboard(db, session.farmId, date), [session.farmId, date]);
 
   return (
-    <div className="space-y-5">
-      <div>
-        <h1 className="text-4xl font-black text-stone-950">Inicio</h1>
-        <p className="mt-1 text-lg text-stone-700">Un número al día es suficiente para empezar.</p>
+    <div className="space-y-6">
+      <div className="px-1">
+        <p className="text-sm font-bold uppercase tracking-[0.16em] text-lime-800">Resumen de hoy</p>
+        <h1 className="mt-1 text-3xl font-black tracking-tight text-stone-950 sm:text-4xl">La finca, al día.</h1>
       </div>
 
-      <Card>
-        <p className="text-lg font-bold text-stone-700">Litros de hoy</p>
-        <p className="mt-1 text-6xl font-black text-lime-800">
+      <section className="rounded-3xl bg-lime-800 p-6 text-white shadow-[0_16px_35px_rgba(77,124,15,0.25)]">
+        <p className="text-base font-bold text-lime-100">Medida del tanque · hoy</p>
+        <p className="mt-3 text-6xl font-black tracking-tight sm:text-7xl">
           {dashboard?.todayLiters === undefined ? "—" : dashboard.todayLiters.toFixed(1)}
         </p>
-        <p className="mt-2 text-lg text-stone-700">
-          {dashboard?.todayLiters === undefined ? "Todavía no has anotado la leche de hoy." : "medidos en el tanque"}
+        <p className="mt-1 text-lg font-semibold text-lime-100">
+          {dashboard?.todayLiters === undefined ? "Aún falta la medida de hoy" : "litros medidos en el tanque"}
         </p>
-      </Card>
+        <Button type="button" className="mt-6 w-full bg-white text-lime-950 hover:bg-lime-50" onClick={onCapture}>
+          {dashboard?.todayLiters === undefined ? "Anotar la leche" : "Revisar la medida"}
+        </Button>
+      </section>
 
       <Card>
-        <p className="text-lg font-bold text-stone-700">Promedio de los últimos 7 días</p>
-        <p className="mt-1 text-4xl font-black text-stone-950">
+        <p className="text-sm font-bold uppercase tracking-wide text-stone-500">Referencia</p>
+        <p className="mt-1 text-3xl font-black tracking-tight text-stone-950">
           {dashboard?.sevenDayAverage === undefined ? "Aún no sabemos" : dashboard.sevenDayAverage.toFixed(1) + " L"}
         </p>
+        <p className="mt-1 text-base text-stone-600">Promedio de los últimos 7 días.</p>
       </Card>
-
-      <Button type="button" className="w-full bg-lime-700 text-white hover:bg-lime-800" onClick={onCapture}>
-        Anotar la leche de hoy
-      </Button>
     </div>
   );
 };
@@ -166,12 +166,12 @@ const Navigation = ({ currentPage, onNavigate }: NavigationProps) => {
   ];
 
   return (
-    <nav className="sticky bottom-0 grid grid-cols-4 gap-1 border-t border-stone-200 bg-white p-2">
+    <nav className="sticky bottom-0 grid grid-cols-4 gap-1 border-t border-stone-200/80 bg-white/95 p-2 pb-[max(0.5rem,env(safe-area-inset-bottom))] backdrop-blur">
       {links.map((link) => (
         <button
           className={
-            "min-h-12 rounded-lg px-2 text-lg font-bold " +
-            (currentPage === link.page ? "bg-lime-700 text-white" : "text-stone-700")
+            "min-h-12 rounded-2xl px-1 text-sm font-bold " +
+            (currentPage === link.page ? "bg-lime-100 text-lime-950" : "text-stone-500")
           }
           key={link.page}
           onClick={() => onNavigate(link.page)}
@@ -209,15 +209,15 @@ const AppShell = ({ session }: { session: FarmSession }) => {
   }, [sync]);
 
   return (
-    <div className="mx-auto flex min-h-screen max-w-2xl flex-col bg-stone-50">
+    <div className="mx-auto flex min-h-screen max-w-2xl flex-col bg-transparent">
       <header className="flex items-center justify-between gap-3 bg-lime-950 px-5 py-4 text-white">
         <div>
-          <p className="text-2xl font-black">REJO</p>
-          <p className="text-lg text-lime-100">{syncMessage(syncStatus, pendingCount)}</p>
+          <p className="text-xl font-black tracking-wide">REJO</p>
+          <p className="mt-1 inline-flex rounded-full bg-lime-900 px-2.5 py-1 text-sm font-semibold text-lime-100">{syncMessage(syncStatus, pendingCount)}</p>
         </div>
         {pendingCount > 0 ? (
           <button
-            className="min-h-12 rounded-lg bg-lime-800 px-3 text-lg font-bold"
+            className="min-h-12 rounded-2xl bg-white px-4 text-base font-bold text-lime-950"
             type="button"
             onClick={() => void sync()}
           >
@@ -226,7 +226,7 @@ const AppShell = ({ session }: { session: FarmSession }) => {
         ) : null}
       </header>
 
-      <main className="flex-1 p-5">
+      <main className="flex-1 p-4 pb-6 pt-6 sm:p-6">
         {page === "home" ? <HomePage session={session} onCapture={() => setPage("capture")} /> : null}
         {page === "capture" ? <MilkCapturePage session={session} onSaved={() => setPage("home")} /> : null}
         {page === "animals" ? <AnimalsPage session={session} /> : null}

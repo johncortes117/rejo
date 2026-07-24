@@ -41,8 +41,8 @@ describe("Phase 0 daily flow", () => {
     });
     fireEvent.click(screen.getByRole("button", { name: "Empezar" }));
 
-    await screen.findByRole("heading", { name: "Inicio" });
-    fireEvent.click(screen.getByRole("button", { name: "Anotar la leche de hoy" }));
+    await screen.findByRole("heading", { name: "La finca, al día." });
+    fireEvent.click(screen.getByRole("button", { name: "Anotar la leche" }));
     fireEvent.change(screen.getByPlaceholderText("Ejemplo: 205"), { target: { value: "205" } });
     fireEvent.click(screen.getByRole("button", { name: "Guardar la medida" }));
 

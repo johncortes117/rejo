@@ -1,7 +1,7 @@
 import { forwardRef, type ButtonHTMLAttributes, type InputHTMLAttributes, type PropsWithChildren } from "react";
 
 export const Card = ({ children }: PropsWithChildren) => (
-  <section className="rounded-2xl bg-white p-5 shadow-sm ring-1 ring-stone-200">{children}</section>
+  <section className="rounded-3xl border border-stone-200/80 bg-white p-5 shadow-[0_8px_28px_rgba(28,25,23,0.06)] sm:p-6">{children}</section>
 );
 
 export const Button = ({
@@ -11,7 +11,7 @@ export const Button = ({
 }: PropsWithChildren<ButtonHTMLAttributes<HTMLButtonElement>>) => (
   <button
     className={
-      "min-h-12 rounded-xl px-5 py-3 text-lg font-bold transition focus:outline-none focus:ring-4 focus:ring-lime-300 disabled:cursor-not-allowed disabled:opacity-50 " +
+      "min-h-12 rounded-2xl px-4 py-3 text-base font-bold transition active:scale-[0.98] focus:outline-none focus:ring-4 focus:ring-lime-300 disabled:cursor-not-allowed disabled:opacity-50 sm:px-5 sm:text-lg " +
       className
     }
     {...props}
@@ -21,7 +21,7 @@ export const Button = ({
 );
 
 export const FieldLabel = ({ children }: PropsWithChildren) => (
-  <label className="mb-2 block text-lg font-semibold text-stone-800">{children}</label>
+  <label className="mb-2 block text-sm font-bold uppercase tracking-wide text-stone-600">{children}</label>
 );
 
 export const TextInput = forwardRef<HTMLInputElement, InputHTMLAttributes<HTMLInputElement>>(
@@ -29,7 +29,7 @@ export const TextInput = forwardRef<HTMLInputElement, InputHTMLAttributes<HTMLIn
     <input
       ref={reference}
       className={
-        "min-h-12 w-full rounded-xl border-2 border-stone-300 bg-white px-4 text-lg text-stone-950 outline-none placeholder:text-stone-400 focus:border-lime-700 " +
+        "min-h-12 w-full rounded-2xl border border-stone-300 bg-stone-50 px-4 text-lg text-stone-950 outline-none placeholder:text-stone-400 focus:border-lime-700 focus:bg-white focus:ring-4 focus:ring-lime-100 " +
         className
       }
       {...props}
@@ -50,5 +50,5 @@ export const Notice = ({
     error: "bg-red-50 text-red-950 ring-red-200"
   };
 
-  return <div className={"rounded-xl p-4 text-lg ring-1 " + colorByTone[tone]}>{children}</div>;
+  return <div className={"rounded-2xl p-3 text-base leading-snug ring-1 " + colorByTone[tone]}>{children}</div>;
 };

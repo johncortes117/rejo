@@ -112,20 +112,20 @@ export const MilkCapturePage = ({ session, onSaved }: MilkCapturePageProps) => {
   };
 
   return (
-    <div className="space-y-5">
-      <div>
-        <h1 className="text-3xl font-black text-stone-950">Anotar la leche</h1>
-        <p className="mt-1 text-lg text-stone-700">Solo toma unos segundos.</p>
+    <div className="space-y-6">
+      <div className="px-1">
+        <p className="text-sm font-bold uppercase tracking-[0.16em] text-lime-800">Registro diario</p>
+        <h1 className="mt-1 text-3xl font-black tracking-tight text-stone-950">Anotar la leche</h1>
       </div>
 
       {message ? <Notice tone="success">{message}</Notice> : null}
       {error ? <Notice tone="error">{error}</Notice> : null}
 
       <Card>
-        <div className="mb-5 grid grid-cols-2 gap-3">
+        <div className="grid grid-cols-2 gap-2 rounded-2xl bg-stone-100 p-1.5">
           <Button
             type="button"
-            className={mode === "liters" ? "bg-lime-700 text-white" : "bg-stone-100 text-stone-800"}
+            className={mode === "liters" ? "bg-lime-700 text-white shadow-sm" : "text-stone-600"}
             onClick={() => setMode("liters")}
           >
             Litros
@@ -133,23 +133,20 @@ export const MilkCapturePage = ({ session, onSaved }: MilkCapturePageProps) => {
           <Button
             type="button"
             disabled={calibrationPoints.length === 0}
-            className={mode === "mark" ? "bg-lime-700 text-white" : "bg-stone-100 text-stone-800"}
+            className={mode === "mark" ? "bg-lime-700 text-white shadow-sm" : "text-stone-600"}
             onClick={() => setMode("mark")}
           >
             Marca de regla
           </Button>
         </div>
 
-        {calibrationPoints.length === 0 ? (
-          <Notice tone="info">
-            Puedes usar litros desde hoy. Carga la tabla de aforo en Ajustes para usar la regla.
-          </Notice>
-        ) : null}
+        {calibrationPoints.length === 0 ? <p className="mt-4 text-sm font-medium text-stone-500">La regla se habilita cuando cargues la tabla de aforo.</p> : null}
 
-        <div className="mt-5">
+        <div className="mt-6">
           <FieldLabel>{mode === "liters" ? "¿Cuántos litros?" : "¿Qué marca dio la regla?"}</FieldLabel>
           <TextInput
             autoFocus
+            className="min-h-20 text-3xl font-black"
             inputMode="decimal"
             min="0"
             step="0.1"
@@ -160,18 +157,6 @@ export const MilkCapturePage = ({ session, onSaved }: MilkCapturePageProps) => {
           />
         </div>
 
-        <div className="mt-5">
-          <FieldLabel>Litros que declaró el tanquero (opcional)</FieldLabel>
-          <TextInput inputMode="decimal" min="0" step="0.1" type="number" value={buyerLiters} onChange={(event) => setBuyerLiters(event.target.value)} placeholder="Ejemplo: 203" />
-        </div>
-
-        {balance.varianceLiters !== undefined ? (
-          <Notice tone={balance.needsReview ? "warning" : "success"}>
-            Diferencia con el tanquero: {balance.varianceLiters.toFixed(1)} L ({balance.variancePercent?.toFixed(1)}%).
-            {balance.needsReview ? " Conviene revisar ambas medidas." : " Dentro del margen de 3%."}
-          </Notice>
-        ) : null}
-
         {mode === "mark" && interpolation ? (
           <Notice tone={interpolation.extrapolated ? "warning" : "success"}>
             La marca equivale a <strong>{interpolation.liters.toFixed(1)} litros</strong>.
@@ -181,27 +166,29 @@ export const MilkCapturePage = ({ session, onSaved }: MilkCapturePageProps) => {
           </Notice>
         ) : null}
 
-        <div className="mt-5">
-          <FieldLabel>¿Cuántos litros sacaste para terneros? (opcional)</FieldLabel>
-          <TextInput
-            inputMode="decimal"
-            min="0"
-            step="0.1"
-            type="number"
-            value={calvesLiters}
-            onChange={(event) => setCalvesLiters(event.target.value)}
-            placeholder="Ejemplo: 4"
-          />
-        </div>
+        <details className="mt-6 rounded-2xl bg-stone-50 p-4">
+          <summary className="cursor-pointer text-base font-bold text-stone-700">Agregar datos opcionales</summary>
+          <div className="mt-5 space-y-5">
+            <div>
+              <FieldLabel>Litros que declaró el tanquero</FieldLabel>
+              <TextInput inputMode="decimal" min="0" step="0.1" type="number" value={buyerLiters} onChange={(event) => setBuyerLiters(event.target.value)} placeholder="Ejemplo: 203" />
+            </div>
+            <div>
+              <FieldLabel>Litros para terneros</FieldLabel>
+              <TextInput inputMode="decimal" min="0" step="0.1" type="number" value={calvesLiters} onChange={(event) => setCalvesLiters(event.target.value)} placeholder="Ejemplo: 4" />
+            </div>
+            <div>
+              <FieldLabel>Fecha</FieldLabel>
+              <TextInput type="date" value={date} onChange={(event) => setDate(event.target.value)} />
+            </div>
+          </div>
+        </details>
 
-        <div className="mt-5">
-          <FieldLabel>Fecha</FieldLabel>
-          <TextInput type="date" value={date} onChange={(event) => setDate(event.target.value)} />
-        </div>
+        {balance.varianceLiters !== undefined ? <Notice tone={balance.needsReview ? "warning" : "success"}>Diferencia con el tanquero: {balance.varianceLiters.toFixed(1)} L ({balance.variancePercent?.toFixed(1)}%).</Notice> : null}
 
         <Button
           type="button"
-          className="mt-6 w-full bg-lime-700 text-white hover:bg-lime-800"
+          className="mt-6 w-full bg-lime-700 text-white shadow-lg shadow-lime-200 hover:bg-lime-800"
           disabled={isSaving}
           onClick={() => void save()}
         >
