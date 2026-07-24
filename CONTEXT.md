@@ -50,6 +50,10 @@ _Evitar_: parición.
 Sacar una vaca de ordeño antes del parto esperado.
 _Evitar_: fin de lactancia.
 
+**Grupo del rejo**:
+Una agrupación operativa configurable que la finca usa para ver y manejar animales juntos. Los grupos iniciales son **En ordeño**, **Secadas**, **Vaconas** y **Terneros**; se pueden renombrar, crear y ordenar sin cambiar el historial reproductivo o sanitario del animal.
+_Evitar_: usarlo como diagnóstico reproductivo o como estado sanitario.
+
 ## Sanidad y finca
 
 **No se puede entregar su leche**:
