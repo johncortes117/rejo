@@ -5,6 +5,8 @@ import type { Buyer, Farm, FarmSession } from "@/domain/models";
 import type { CalibrationPoint } from "@/domain/tank";
 import { db } from "@/db/rejo-db";
 import { saveFarmSettings } from "@/features/settings/settings";
+import { nowInFarmTimezone } from "@/domain/time";
+import { createDefaultPreventivePlan } from "@/features/health/default-plan";
 
 interface SettingsPageProps {
   session: FarmSession;
@@ -25,6 +27,7 @@ const toSettingsForm = (farm: Farm, buyer: Buyer, calibration: CalibrationPoint[
 });
 
 export const SettingsPage = ({ session }: SettingsPageProps) => {
+  const { date: today } = nowInFarmTimezone();
   const farm = useLiveQuery(() => db.farms.get(session.farmId), [session.farmId]);
   const buyer = useLiveQuery(
     () => db.buyers.filter((item) => item.farmId === session.farmId && !item.deletedAt).first(),
@@ -39,6 +42,11 @@ export const SettingsPage = ({ session }: SettingsPageProps) => {
         .sort((left, right) => left.mark - right.mark)
         .map((point) => ({ mark: point.mark, liters: point.liters }));
     },
+    [session.farmId],
+    []
+  );
+  const preventiveTasks = useLiveQuery(
+    () => db.healthPlanTasks.filter((task) => task.farmId === session.farmId && task.isTemplate && !task.deletedAt).sortBy("dueDate"),
     [session.farmId],
     []
   );
@@ -86,6 +94,17 @@ export const SettingsPage = ({ session }: SettingsPageProps) => {
       setMessage("Los ajustes quedaron guardados en el celular.");
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : "No se pudieron guardar los ajustes.");
+    }
+  };
+
+  const activatePreventivePlan = async () => {
+    setMessage(undefined);
+    setError(undefined);
+    try {
+      const tasks = await createDefaultPreventivePlan(db, { farmId: session.farmId, userId: session.userId, startDate: today });
+      setMessage(tasks.length === 0 ? "El plan sanitario mínimo ya estaba activo." : "El plan sanitario mínimo quedó guardado en el celular.");
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : "No se pudo activar el plan sanitario.");
     }
   };
 
@@ -178,6 +197,25 @@ export const SettingsPage = ({ session }: SettingsPageProps) => {
         >
           Agregar una marca
         </Button>
+      </Card>
+
+      <Card>
+        <h2 className="text-2xl font-black">Plan sanitario mínimo</h2>
+        <p className="mt-1 text-lg text-stone-700">Incluye curada periódica y prueba anual de brucelosis. Puedes usarlo como guía, no es obligatorio.</p>
+        {preventiveTasks.length === 0 ? (
+          <Button type="button" className="mt-5 w-full bg-stone-100 text-stone-800" onClick={() => void activatePreventivePlan()}>
+            Activar plan sanitario mínimo
+          </Button>
+        ) : (
+          <div className="mt-5 space-y-3">
+            {preventiveTasks.map((task) => (
+              <div className="rounded-lg bg-amber-50 p-4" key={task.id}>
+                <p className="text-lg font-bold">{task.taskType === "deworming" ? "Curada" : "Prueba anual de brucelosis"}</p>
+                <p className="text-lg text-stone-700">Próxima fecha: {task.dueDate}</p>
+              </div>
+            ))}
+          </div>
+        )}
       </Card>
 
       <Button type="button" className="w-full bg-lime-700 text-white hover:bg-lime-800" onClick={() => void save()}>
