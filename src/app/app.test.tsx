@@ -219,4 +219,24 @@ describe("Phase 0 daily flow", () => {
     await waitFor(async () => expect(await db.transactions.count()).toBe(1));
     expect((await db.transactions.toArray())[0]).toMatchObject({ category: "Concentrado", amount: 35.5, direction: "expense" });
   });
+
+  it("opens the herd movement workflow from the paddock overview", async () => {
+    Object.defineProperty(navigator, "onLine", { configurable: true, value: false });
+    render(<App />);
+
+    fireEvent.change(screen.getByPlaceholderText("Ejemplo: Finca El Capulí"), {
+      target: { value: "Finca La Pintada" }
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Empezar" }));
+
+    await screen.findByRole("heading", { name: "La finca, al día." });
+    fireEvent.click(screen.getByRole("button", { name: "Más" }));
+    await screen.findByRole("heading", { name: "Más" });
+    fireEvent.click(screen.getByRole("button", { name: /Potreros/ }));
+    await screen.findByRole("heading", { name: "Potreros y rotación" });
+    expect(screen.queryByRole("heading", { name: "Mover el rejo" })).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "Mover el rejo" }));
+    await screen.findByRole("heading", { name: "Mover el rejo" });
+  });
 });
