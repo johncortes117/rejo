@@ -136,4 +136,22 @@ describe("Phase 0 daily flow", () => {
 
     await screen.findByRole("heading", { name: "Sanidad" });
   });
+
+  it("keeps operational health out of farm settings", async () => {
+    Object.defineProperty(navigator, "onLine", { configurable: true, value: false });
+    render(<App />);
+
+    fireEvent.change(screen.getByPlaceholderText("Ejemplo: Finca El Capulí"), {
+      target: { value: "Finca La Pintada" }
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Empezar" }));
+
+    await screen.findByRole("heading", { name: "La finca, al día." });
+    fireEvent.click(screen.getByRole("button", { name: "Más" }));
+    await screen.findByRole("heading", { name: "Más" });
+    fireEvent.click(screen.getByRole("button", { name: /Configuración/ }));
+
+    await screen.findByRole("heading", { name: "Configuración de la finca" });
+    expect(screen.queryByText("Plan sanitario mínimo")).not.toBeInTheDocument();
+  });
 });
