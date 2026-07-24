@@ -16,10 +16,11 @@ import { getMilkDashboard } from "@/features/milk/dashboard";
 import { getDecisionDashboard, type MilkTrendPoint } from "@/features/insights/decision-dashboard";
 import { SettingsPage } from "@/features/settings/settings-page";
 import { SettlementsPage } from "@/features/economics/settlements-page";
+import { PaddocksPage } from "@/features/paddocks/paddocks-page";
 import { pullFarmChanges, syncPendingOperations, type SyncStatus } from "@/sync/sync-service";
 import { isSupabaseConfigured, supabase } from "@/sync/supabase";
 
-type Page = "home" | "capture" | "animals" | "finance" | "settings";
+type Page = "home" | "capture" | "animals" | "finance" | "paddocks" | "settings";
 const farmProvisionSchema = z.object({
   farmName: z.string().trim().min(1, "Escribe el nombre de la finca para empezar."),
   ownerName: z.string()
@@ -119,6 +120,7 @@ const ProvisioningPage = ({ onProvisioned, userId }: ProvisioningPageProps) => {
 interface HomePageProps {
   session: FarmSession;
   onCapture: () => void;
+  onPaddocks: () => void;
 }
 
 const MilkTrendChart = ({ points }: { points: MilkTrendPoint[] }) => {
@@ -137,7 +139,7 @@ const MilkTrendChart = ({ points }: { points: MilkTrendPoint[] }) => {
   return <svg className="h-32 w-full overflow-visible" viewBox="0 0 320 112" role="img" aria-label={`Tendencia de ${points.length} medidas del tanque, entre ${minimum.toFixed(1)} y ${maximum.toFixed(1)} litros`}><line x1="12" x2="308" y1="100" y2="100" stroke="currentColor" strokeOpacity="0.15" /><polyline points={coordinates} fill="none" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="4" /><circle cx={coordinates.split(" ").at(-1)?.split(",")[0]} cy={coordinates.split(" ").at(-1)?.split(",")[1]} fill="currentColor" r="5" /></svg>;
 };
 
-const HomePage = ({ session, onCapture }: HomePageProps) => {
+const HomePage = ({ session, onCapture, onPaddocks }: HomePageProps) => {
   const { date } = nowInFarmTimezone();
   const [trendPeriod, setTrendPeriod] = useState<7 | 30>(7);
   const dashboard = useLiveQuery(() => getMilkDashboard(db, session.farmId, date), [session.farmId, date]);
@@ -173,6 +175,10 @@ const HomePage = ({ session, onCapture }: HomePageProps) => {
         </p>
         <p className="mt-1 text-base text-stone-600">Promedio de los últimos 7 días.</p>
       </Card>
+
+      <button type="button" className="flex w-full items-center justify-between rounded-3xl border border-lime-200 bg-lime-50 p-5 text-left shadow-[0_8px_28px_rgba(77,124,15,0.08)] transition active:scale-[0.99]" onClick={onPaddocks}>
+        <span><span className="flex items-center gap-2 text-sm font-bold uppercase tracking-wide text-lime-800"><Beef size={17} aria-hidden="true" />Manejo de la finca</span><span className="mt-1 block text-xl font-black text-stone-950">Potreros y rotación</span><span className="mt-1 block text-base text-stone-600">Revisa dónde está el rejo y los descansos.</span></span><span className="text-2xl font-black text-lime-800" aria-hidden="true">›</span>
+      </button>
 
       <section>
         <div className="flex items-end justify-between gap-3 px-1">
@@ -270,10 +276,11 @@ const AppShell = ({ session }: { session: FarmSession }) => {
       </header>
 
       <main className="flex-1 p-4 pb-6 pt-6 sm:p-6">
-        {page === "home" ? <HomePage session={session} onCapture={() => setPage("capture")} /> : null}
+        {page === "home" ? <HomePage session={session} onCapture={() => setPage("capture")} onPaddocks={() => setPage("paddocks")} /> : null}
         {page === "capture" ? <MilkCapturePage session={session} onSaved={() => setPage("home")} /> : null}
         {page === "animals" ? <AnimalsPage session={session} /> : null}
         {page === "finance" ? <SettlementsPage session={session} /> : null}
+        {page === "paddocks" ? <PaddocksPage session={session} onBack={() => setPage("home")} /> : null}
         {page === "settings" ? <SettingsPage session={session} /> : null}
       </main>
 

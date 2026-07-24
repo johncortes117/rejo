@@ -231,6 +231,28 @@ export interface LaborRecord extends RecordMeta {
   period: string;
 }
 
+export type PaddockUse = "pasture" | "potato" | "rest" | "other";
+
+export interface Paddock extends RecordMeta {
+  name: string;
+  use: PaddockUse;
+  areaHectares?: number;
+  infrastructure?: string;
+  targetRestDays: number;
+}
+
+export interface GrazingLot extends RecordMeta {
+  name: string;
+  notes?: string;
+}
+
+export interface GrazingRecord extends RecordMeta {
+  paddockId: EntityId;
+  lotId: EntityId;
+  enteredAt: string;
+  exitedAt?: string;
+}
+
 export type SyncOperation = "upsert" | "soft_delete";
 
 export interface SyncQueueItem {
@@ -256,7 +278,10 @@ export interface SyncQueueItem {
     | "transactions"
     | "assets"
     | "labor"
-    | "herd_groups";
+    | "herd_groups"
+    | "paddocks"
+    | "grazing_lots"
+    | "grazing_records";
   entityId: EntityId;
   operation: SyncOperation;
   payload: Record<string, unknown>;
