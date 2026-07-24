@@ -6,7 +6,7 @@ import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { AlertTriangle, BadgeDollarSign, Beef, ChartNoAxesCombined, CircleCheck, ClipboardPenLine, CloudUpload, House, Menu, Milk, Sprout, TrendingDown, TrendingUp } from "lucide-react";
 import { Button, Card, FieldLabel, Notice, TextInput } from "@/components/ui";
-import { provisionFarm, readFarmSession, saveFarmSession } from "@/db/bootstrap";
+import { clearFarmSession, provisionFarm, readFarmSession, saveFarmSession } from "@/db/bootstrap";
 import { db } from "@/db/rejo-db";
 import { nowInFarmTimezone } from "@/domain/time";
 import type { FarmSession } from "@/domain/models";
@@ -237,7 +237,7 @@ const Navigation = ({ currentPage, onNavigate }: NavigationProps) => {
   );
 };
 
-const AppShell = ({ session }: { session: FarmSession }) => {
+const AppShell = ({ session, onSignOut }: { session: FarmSession; onSignOut?: () => Promise<void> }) => {
   const [page, setPage] = useState<Page>("home");
   const [returnPage, setReturnPage] = useState<Page>("home");
   const [syncStatus, setSyncStatus] = useState<SyncStatus>();
@@ -304,7 +304,7 @@ const AppShell = ({ session }: { session: FarmSession }) => {
         {page === "paddocks" ? <PaddocksPage session={session} onBack={() => setPage(returnPage)} /> : null}
         {page === "milk-control" ? <MilkControlPage session={session} onBack={() => setPage(returnPage)} /> : null}
         {page === "more" ? <MorePage onPaddocks={() => openPaddocks("more")} onSettings={() => setPage("settings")} /> : null}
-        {page === "settings" ? <SettingsPage session={session} /> : null}
+        {page === "settings" ? <SettingsPage session={session} onSignOut={onSignOut} /> : null}
       </main>
 
       <Navigation currentPage={page} onNavigate={setPage} />
@@ -446,6 +446,20 @@ const ConfiguredApp = () => {
   const [farmLookup, setFarmLookup] = useState<RemoteFarmSessionResult | { state: "loading" }>();
   const [farmLookupAttempt, setFarmLookupAttempt] = useState(0);
   const authUserId = authSession?.user.id;
+  const signOut = useCallback(async () => {
+    if (!supabase) {
+      return;
+    }
+
+    const { error } = await supabase.auth.signOut();
+    if (error) {
+      throw new Error(error.message);
+    }
+
+    clearFarmSession();
+    setFarmSession(null);
+    setFarmLookup(undefined);
+  }, []);
 
   useEffect(() => {
     if (!supabase) {
@@ -534,7 +548,7 @@ const ConfiguredApp = () => {
     );
   }
 
-  return <AppShell session={farmSession} />;
+  return <AppShell session={farmSession} onSignOut={signOut} />;
 };
 
 export const App = () =>

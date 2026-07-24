@@ -27,6 +27,10 @@ export const saveFarmSession = (session: FarmSession): void => {
   localStorage.setItem(SESSION_STORAGE_KEY, JSON.stringify(session));
 };
 
+export const clearFarmSession = (): void => {
+  localStorage.removeItem(SESSION_STORAGE_KEY);
+};
+
 export interface ProvisionFarmInput {
   farmName: string;
   ownerName?: string;

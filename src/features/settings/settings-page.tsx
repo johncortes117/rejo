@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useLiveQuery } from "dexie-react-hooks";
-import { Building2, CirclePlus, Ruler, Save, Settings, Trash2, Truck } from "lucide-react";
+import { Building2, CirclePlus, LogOut, Ruler, Save, Settings, Trash2, Truck } from "lucide-react";
 import { Button, Card, FieldLabel, Notice, TextInput } from "@/components/ui";
 import type { Buyer, Farm, FarmSession } from "@/domain/models";
 import type { CalibrationPoint } from "@/domain/tank";
@@ -9,6 +9,7 @@ import { saveFarmSettings } from "@/features/settings/settings";
 
 interface SettingsPageProps {
   session: FarmSession;
+  onSignOut?: () => Promise<void>;
 }
 
 interface SettingsForm {
@@ -25,7 +26,7 @@ const toSettingsForm = (farm: Farm, buyer: Buyer, calibration: CalibrationPoint[
   calibration
 });
 
-export const SettingsPage = ({ session }: SettingsPageProps) => {
+export const SettingsPage = ({ session, onSignOut }: SettingsPageProps) => {
   const farm = useLiveQuery(() => db.farms.get(session.farmId), [session.farmId]);
   const buyer = useLiveQuery(
     () => db.buyers.filter((item) => item.farmId === session.farmId && !item.deletedAt).first(),
@@ -46,6 +47,7 @@ export const SettingsPage = ({ session }: SettingsPageProps) => {
   const [form, setForm] = useState<SettingsForm>();
   const [message, setMessage] = useState<string>();
   const [error, setError] = useState<string>();
+  const [isSigningOut, setIsSigningOut] = useState(false);
 
   useEffect(() => {
     if (farm && buyer && form === undefined) {
@@ -87,6 +89,21 @@ export const SettingsPage = ({ session }: SettingsPageProps) => {
       setMessage("Los ajustes quedaron guardados en el celular.");
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : "No se pudieron guardar los ajustes.");
+    }
+  };
+
+  const signOut = async () => {
+    if (!onSignOut) {
+      return;
+    }
+
+    setError(undefined);
+    setIsSigningOut(true);
+    try {
+      await onSignOut();
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : "No se pudo cerrar la sesión.");
+      setIsSigningOut(false);
     }
   };
 
@@ -188,6 +205,15 @@ export const SettingsPage = ({ session }: SettingsPageProps) => {
         <Save size={20} aria-hidden="true" />
         Guardar ajustes
       </Button>
+
+      {onSignOut ? <Card>
+        <h2 className="flex items-center gap-2 text-2xl font-black"><LogOut size={24} aria-hidden="true" />Acceso</h2>
+        <p className="mt-2 text-base text-stone-700">Cierra esta cuenta para entrar a otra finca en este teléfono.</p>
+        <Button type="button" className="mt-5 w-full bg-stone-100 text-stone-800" disabled={isSigningOut} onClick={() => void signOut()}>
+          <LogOut size={20} aria-hidden="true" />
+          {isSigningOut ? "Cerrando sesión…" : "Cerrar sesión"}
+        </Button>
+      </Card> : null}
     </div>
   );
 };
