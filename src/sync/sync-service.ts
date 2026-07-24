@@ -26,7 +26,9 @@ const remoteTableNames: Record<SyncQueueItem["entityTable"], string> = {
   herd_groups: "herd_groups",
   paddocks: "paddocks",
   grazing_lots: "grazing_lots",
-  grazing_records: "grazing_records"
+  grazing_records: "grazing_records",
+  milk_control_sessions: "milk_control_sessions",
+  milk_control_records: "milk_control_records"
 };
 
 const camelToSnake: Record<string, string> = {
@@ -115,7 +117,8 @@ const camelToSnake: Record<string, string> = {
   paddockId: "paddock_id",
   lotId: "lot_id",
   enteredAt: "entered_at",
-  exitedAt: "exited_at"
+  exitedAt: "exited_at",
+  sessionId: "session_id"
 };
 
 const snakeToCamel = Object.fromEntries(
@@ -155,7 +158,9 @@ type LocalTableKey =
   | "herdGroups"
   | "paddocks"
   | "grazingLots"
-  | "grazingRecords";
+  | "grazingRecords"
+  | "milkControlSessions"
+  | "milkControlRecords";
 
 const localTableKeys: Record<SyncQueueItem["entityTable"], LocalTableKey> = {
   farms: "farms",
@@ -180,7 +185,9 @@ const localTableKeys: Record<SyncQueueItem["entityTable"], LocalTableKey> = {
   herd_groups: "herdGroups",
   paddocks: "paddocks",
   grazing_lots: "grazingLots",
-  grazing_records: "grazingRecords"
+  grazing_records: "grazingRecords",
+  milk_control_sessions: "milkControlSessions",
+  milk_control_records: "milkControlRecords"
 };
 
 const getTable = (

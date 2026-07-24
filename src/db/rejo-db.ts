@@ -12,6 +12,8 @@ import type {
   HerdGroup,
   LaborRecord,
   MilkQualityTest,
+  MilkControlRecord,
+  MilkControlSession,
   MilkUsage,
   Paddock,
   PriceSetting,
@@ -50,6 +52,8 @@ export class RejoDb extends Dexie {
   paddocks!: EntityTable<Paddock, "id">;
   grazingLots!: EntityTable<GrazingLot, "id">;
   grazingRecords!: EntityTable<GrazingRecord, "id">;
+  milkControlSessions!: EntityTable<MilkControlSession, "id">;
+  milkControlRecords!: EntityTable<MilkControlRecord, "id">;
   syncQueue!: EntityTable<SyncQueueItem, "id">;
 
   constructor(name = "rejo") {
@@ -143,6 +147,10 @@ export class RejoDb extends Dexie {
 
     this.version(8).stores({
       farms: "id, farmId, updatedAt, deletedAt", buyers: "id, farmId, updatedAt, deletedAt", tankCalibrations: "id, farmId, [farmId+mark], updatedAt, deletedAt", animals: "id, farmId, [farmId+name], [farmId+herdGroupId], updatedAt, deletedAt", herdGroups: "id, farmId, [farmId+sortOrder], updatedAt, deletedAt", tankReadings: "id, farmId, [farmId+date], [farmId+date+moment], updatedAt, deletedAt", milkUsages: "id, farmId, [farmId+date], updatedAt, deletedAt", heats: "id, farmId, [farmId+animalId], [farmId+date], updatedAt, deletedAt", services: "id, farmId, [farmId+animalId], [farmId+date], updatedAt, deletedAt", pregnancyChecks: "id, farmId, [farmId+animalId], [farmId+date], updatedAt, deletedAt", calvings: "id, farmId, [farmId+animalId], [farmId+date], updatedAt, deletedAt", dryOffs: "id, farmId, [farmId+animalId], [farmId+date], updatedAt, deletedAt", healthEvents: "id, farmId, [farmId+animalId], [farmId+date], updatedAt, deletedAt", healthPlanTasks: "id, farmId, [farmId+animalId], [farmId+dueDate], updatedAt, deletedAt", milkQualityTests: "id, farmId, [farmId+date], updatedAt, deletedAt", priceSettings: "id, farmId, [farmId+effectiveFrom], updatedAt, deletedAt", settlements: "id, farmId, [farmId+periodEnd], [farmId+buyerId], updatedAt, deletedAt", transactions: "id, farmId, [farmId+date], [farmId+direction], updatedAt, deletedAt", assets: "id, farmId, updatedAt, deletedAt", labor: "id, farmId, [farmId+period], updatedAt, deletedAt", paddocks: "id, farmId, [farmId+name], updatedAt, deletedAt", grazingLots: "id, farmId, [farmId+name], updatedAt, deletedAt", grazingRecords: "id, farmId, [farmId+paddockId], [farmId+lotId], [farmId+exitedAt], updatedAt, deletedAt", syncQueue: "id, farmId, [farmId+completedAt], createdAt"
+    });
+
+    this.version(9).stores({
+      farms: "id, farmId, updatedAt, deletedAt", buyers: "id, farmId, updatedAt, deletedAt", tankCalibrations: "id, farmId, [farmId+mark], updatedAt, deletedAt", animals: "id, farmId, [farmId+name], [farmId+herdGroupId], updatedAt, deletedAt", herdGroups: "id, farmId, [farmId+sortOrder], updatedAt, deletedAt", tankReadings: "id, farmId, [farmId+date], [farmId+date+moment], updatedAt, deletedAt", milkUsages: "id, farmId, [farmId+date], updatedAt, deletedAt", heats: "id, farmId, [farmId+animalId], [farmId+date], updatedAt, deletedAt", services: "id, farmId, [farmId+animalId], [farmId+date], updatedAt, deletedAt", pregnancyChecks: "id, farmId, [farmId+animalId], [farmId+date], updatedAt, deletedAt", calvings: "id, farmId, [farmId+animalId], [farmId+date], updatedAt, deletedAt", dryOffs: "id, farmId, [farmId+animalId], [farmId+date], updatedAt, deletedAt", healthEvents: "id, farmId, [farmId+animalId], [farmId+date], updatedAt, deletedAt", healthPlanTasks: "id, farmId, [farmId+animalId], [farmId+dueDate], updatedAt, deletedAt", milkQualityTests: "id, farmId, [farmId+date], updatedAt, deletedAt", priceSettings: "id, farmId, [farmId+effectiveFrom], updatedAt, deletedAt", settlements: "id, farmId, [farmId+periodEnd], [farmId+buyerId], updatedAt, deletedAt", transactions: "id, farmId, [farmId+date], [farmId+direction], updatedAt, deletedAt", assets: "id, farmId, updatedAt, deletedAt", labor: "id, farmId, [farmId+period], updatedAt, deletedAt", paddocks: "id, farmId, [farmId+name], updatedAt, deletedAt", grazingLots: "id, farmId, [farmId+name], updatedAt, deletedAt", grazingRecords: "id, farmId, [farmId+paddockId], [farmId+lotId], [farmId+exitedAt], updatedAt, deletedAt", milkControlSessions: "id, farmId, [farmId+date], updatedAt, deletedAt", milkControlRecords: "id, farmId, [farmId+sessionId], [farmId+animalId], updatedAt, deletedAt", syncQueue: "id, farmId, [farmId+completedAt], createdAt"
     });
   }
 }

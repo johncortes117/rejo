@@ -253,6 +253,17 @@ export interface GrazingRecord extends RecordMeta {
   exitedAt?: string;
 }
 
+export interface MilkControlSession extends RecordMeta {
+  date: string;
+  notes?: string;
+}
+
+export interface MilkControlRecord extends RecordMeta {
+  sessionId: EntityId;
+  animalId: EntityId;
+  liters: number;
+}
+
 export type SyncOperation = "upsert" | "soft_delete";
 
 export interface SyncQueueItem {
@@ -281,7 +292,9 @@ export interface SyncQueueItem {
     | "herd_groups"
     | "paddocks"
     | "grazing_lots"
-    | "grazing_records";
+    | "grazing_records"
+    | "milk_control_sessions"
+    | "milk_control_records";
   entityId: EntityId;
   operation: SyncOperation;
   payload: Record<string, unknown>;

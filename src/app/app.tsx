@@ -17,10 +17,11 @@ import { getDecisionDashboard, type MilkTrendPoint } from "@/features/insights/d
 import { SettingsPage } from "@/features/settings/settings-page";
 import { SettlementsPage } from "@/features/economics/settlements-page";
 import { PaddocksPage } from "@/features/paddocks/paddocks-page";
+import { MilkControlPage } from "@/features/milk-control/milk-control-page";
 import { pullFarmChanges, syncPendingOperations, type SyncStatus } from "@/sync/sync-service";
 import { isSupabaseConfigured, supabase } from "@/sync/supabase";
 
-type Page = "home" | "capture" | "animals" | "finance" | "paddocks" | "settings";
+type Page = "home" | "capture" | "animals" | "finance" | "paddocks" | "milk-control" | "settings";
 const farmProvisionSchema = z.object({
   farmName: z.string().trim().min(1, "Escribe el nombre de la finca para empezar."),
   ownerName: z.string()
@@ -278,9 +279,10 @@ const AppShell = ({ session }: { session: FarmSession }) => {
       <main className="flex-1 p-4 pb-6 pt-6 sm:p-6">
         {page === "home" ? <HomePage session={session} onCapture={() => setPage("capture")} onPaddocks={() => setPage("paddocks")} /> : null}
         {page === "capture" ? <MilkCapturePage session={session} onSaved={() => setPage("home")} /> : null}
-        {page === "animals" ? <AnimalsPage session={session} /> : null}
+        {page === "animals" ? <AnimalsPage session={session} onMilkControl={() => setPage("milk-control")} /> : null}
         {page === "finance" ? <SettlementsPage session={session} /> : null}
         {page === "paddocks" ? <PaddocksPage session={session} onBack={() => setPage("home")} /> : null}
+        {page === "milk-control" ? <MilkControlPage session={session} onBack={() => setPage("animals")} /> : null}
         {page === "settings" ? <SettingsPage session={session} /> : null}
       </main>
 
