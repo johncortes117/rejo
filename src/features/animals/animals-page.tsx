@@ -7,6 +7,8 @@ import { nowInFarmTimezone } from "@/domain/time";
 import { archiveAnimal, saveAnimal } from "@/features/animals/animals";
 import { recordHeat, recordPregnancyCheck, recordService } from "@/features/reproduction/events";
 import { computeReproductiveState } from "@/features/reproduction/reproductive-state";
+import { recordHealthEvent } from "@/features/health/events";
+import { computeMilkWithholdingUntil, isMilkWithheld } from "@/features/health/milk-withholding";
 
 interface AnimalsPageProps {
   session: FarmSession;
@@ -41,6 +43,87 @@ const reproductiveLabel = (status: ReturnType<typeof computeReproductiveState>["
   fresh: "Recién parida",
   not_applicable: "No aplica"
 })[status];
+
+const HealthPanel = ({ animal, session }: { animal: Animal; session: FarmSession }) => {
+  const { date: today } = nowInFarmTimezone();
+  const [date, setDate] = useState(today);
+  const [type, setType] = useState<"mastitis" | "deworming" | "vaccination" | "other">("mastitis");
+  const [productName, setProductName] = useState("");
+  const [withdrawalHours, setWithdrawalHours] = useState("");
+  const [message, setMessage] = useState<string>();
+  const [error, setError] = useState<string>();
+  const events = useLiveQuery(
+    () => db.healthEvents.filter((item) => item.animalId === animal.id && !item.deletedAt).toArray(),
+    [animal.id],
+    []
+  );
+  const withholdingUntil = computeMilkWithholdingUntil(events);
+  const milkWithheld = isMilkWithheld(events, new Date());
+
+  const save = async () => {
+    setMessage(undefined);
+    setError(undefined);
+    const hours = withdrawalHours === "" ? undefined : Number(withdrawalHours);
+
+    if (hours !== undefined && (!Number.isFinite(hours) || hours < 0)) {
+      setError("Escribe horas de retiro válidas.");
+      return;
+    }
+
+    try {
+      await recordHealthEvent(db, {
+        farmId: session.farmId,
+        animalId: animal.id,
+        userId: session.userId,
+        date,
+        type,
+        productName,
+        milkWithdrawalHours: hours
+      });
+      setMessage("El evento sanitario quedó guardado en el celular.");
+      setProductName("");
+      setWithdrawalHours("");
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : "No se pudo guardar el evento sanitario.");
+    }
+  };
+
+  return (
+    <div className="mt-6 border-t border-stone-200 pt-5">
+      <h3 className="text-2xl font-black text-stone-950">Sanidad</h3>
+      {milkWithheld ? (
+        <div className="mt-4"><Notice tone="error">No se puede entregar su leche hasta {new Date(withholdingUntil!).toLocaleString("es-EC", { timeZone: "America/Guayaquil" })}.</Notice></div>
+      ) : null}
+      {message ? <div className="mt-4"><Notice tone="success">{message}</Notice></div> : null}
+      {error ? <div className="mt-4"><Notice tone="error">{error}</Notice></div> : null}
+
+      <div className="mt-5">
+        <FieldLabel>Evento</FieldLabel>
+        <select className="min-h-12 w-full rounded-lg border border-stone-300 bg-white px-3 text-lg" value={type} onChange={(event) => setType(event.target.value as typeof type)}>
+          <option value="mastitis">Mastitis</option>
+          <option value="deworming">Curada</option>
+          <option value="vaccination">Vacuna</option>
+          <option value="other">Otro</option>
+        </select>
+      </div>
+      <div className="mt-5">
+        <FieldLabel>Producto aplicado (opcional)</FieldLabel>
+        <TextInput value={productName} onChange={(event) => setProductName(event.target.value)} placeholder="Ejemplo: medicamento aplicado" />
+      </div>
+      <div className="mt-5">
+        <FieldLabel>Horas de retiro de leche (opcional)</FieldLabel>
+        <TextInput inputMode="numeric" min="0" type="number" value={withdrawalHours} onChange={(event) => setWithdrawalHours(event.target.value)} placeholder="Ejemplo: 96" />
+      </div>
+      <div className="mt-5">
+        <FieldLabel>Fecha</FieldLabel>
+        <TextInput type="date" value={date} onChange={(event) => setDate(event.target.value)} />
+      </div>
+      <Button type="button" className="mt-6 w-full bg-red-800 text-white hover:bg-red-900" onClick={() => void save()}>
+        Guardar evento sanitario
+      </Button>
+    </div>
+  );
+};
 
 const ReproductionPanel = ({ animal, session }: { animal: Animal; session: FarmSession }) => {
   const { date: today } = nowInFarmTimezone();
@@ -130,6 +213,7 @@ const ReproductionPanel = ({ animal, session }: { animal: Animal; session: FarmS
       <Button type="button" className="mt-6 w-full bg-lime-700 text-white hover:bg-lime-800" onClick={() => void save()}>
         Guardar evento
       </Button>
+      <HealthPanel animal={animal} session={session} />
     </Card>
   );
 };
