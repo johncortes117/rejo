@@ -300,8 +300,8 @@ export const AnimalEditor = ({ animal, groups, defaultGroupId, session, onClose,
   </div>;
 };
 
-export const AnimalDetail = ({ animal, groups, session, onClose, onEdit }: { animal: Animal; groups: HerdGroup[]; session: FarmSession; onClose: () => void; onEdit: () => void }) => {
-  const [section, setSection] = useState<DetailSection>("general");
+export const AnimalDetail = ({ animal, groups, session, initialSection = "general", onClose, onEdit }: { animal: Animal; groups: HerdGroup[]; session: FarmSession; initialSection?: DetailSection; onClose: () => void; onEdit: () => void }) => {
+  const [section, setSection] = useState<DetailSection>(initialSection);
   const sexLabel = animal.sex === "female" ? "Hembra" : animal.sex === "male" ? "Macho" : "Sexo pendiente";
   const groupName = groups.find((group) => group.id === animal.herdGroupId)?.name ?? groups[0]?.name ?? "Sin grupo";
   return <div className={screenShell} role="dialog" aria-modal="true" aria-label={`Ficha de ${animal.name}`}>

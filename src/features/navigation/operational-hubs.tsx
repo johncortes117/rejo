@@ -2,6 +2,7 @@ import { Beef, ChevronRight, ClipboardPenLine, HeartPulse, Settings2, ShieldPlus
 
 interface HerdHubPageProps {
   onAnimals: () => void;
+  onReproduction: () => void;
   onMilkControl: () => void;
 }
 
@@ -51,7 +52,7 @@ const DestinationCard = ({
   );
 };
 
-export const HerdHubPage = ({ onAnimals, onMilkControl }: HerdHubPageProps) => (
+export const HerdHubPage = ({ onAnimals, onReproduction, onMilkControl }: HerdHubPageProps) => (
   <div className="space-y-5">
     <header className="px-1">
       <p className="text-sm font-bold uppercase tracking-[0.16em] text-lime-800">Operación animal</p>
@@ -72,7 +73,7 @@ export const HerdHubPage = ({ onAnimals, onMilkControl }: HerdHubPageProps) => (
         description="Registra celos, servicios, preñeces y partos desde la ficha correspondiente."
         action="Abrir fichas"
         icon={HeartPulse}
-        onClick={onAnimals}
+        onClick={onReproduction}
         tone="rose"
       />
       <DestinationCard
