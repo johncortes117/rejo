@@ -85,4 +85,21 @@ describe("Phase 0 daily flow", () => {
     });
     await screen.findByRole("heading", { name: "La finca, al día." });
   });
+
+  it("opens a frequent farm action from the today dashboard", async () => {
+    Object.defineProperty(navigator, "onLine", { configurable: true, value: false });
+    render(<App />);
+
+    fireEvent.change(screen.getByPlaceholderText("Ejemplo: Finca El Capulí"), {
+      target: { value: "Finca La Pintada" }
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Empezar" }));
+
+    await screen.findByRole("heading", { name: "La finca, al día." });
+    fireEvent.click(screen.getByRole("button", { name: "Abrir potreros" }));
+
+    await screen.findByRole("heading", { name: "Potreros y rotación" });
+    fireEvent.click(screen.getByRole("button", { name: "Volver al inicio" }));
+    await screen.findByRole("heading", { name: "La finca, al día." });
+  });
 });

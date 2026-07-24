@@ -4,7 +4,7 @@ import type { Session } from "@supabase/supabase-js";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
-import { AlertTriangle, BadgeDollarSign, Beef, ChartNoAxesCombined, ClipboardPenLine, CloudUpload, House, Menu, Milk, TrendingDown, TrendingUp } from "lucide-react";
+import { AlertTriangle, BadgeDollarSign, Beef, ChartNoAxesCombined, ClipboardPenLine, CloudUpload, House, Menu, Milk, Sprout, TrendingDown, TrendingUp } from "lucide-react";
 import { Button, Card, FieldLabel, Notice, TextInput } from "@/components/ui";
 import { provisionFarm, readFarmSession } from "@/db/bootstrap";
 import { db } from "@/db/rejo-db";
@@ -122,7 +122,10 @@ const ProvisioningPage = ({ onProvisioned, userId }: ProvisioningPageProps) => {
 interface HomePageProps {
   session: FarmSession;
   onCapture: () => void;
+  onHerd: () => void;
+  onFinance: () => void;
   onPaddocks: () => void;
+  onMilkControl: () => void;
 }
 
 const MilkTrendChart = ({ points }: { points: MilkTrendPoint[] }) => {
@@ -141,20 +144,30 @@ const MilkTrendChart = ({ points }: { points: MilkTrendPoint[] }) => {
   return <svg className="h-32 w-full overflow-visible" viewBox="0 0 320 112" role="img" aria-label={`Tendencia de ${points.length} medidas del tanque, entre ${minimum.toFixed(1)} y ${maximum.toFixed(1)} litros`}><line x1="12" x2="308" y1="100" y2="100" stroke="currentColor" strokeOpacity="0.15" /><polyline points={coordinates} fill="none" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="4" /><circle cx={coordinates.split(" ").at(-1)?.split(",")[0]} cy={coordinates.split(" ").at(-1)?.split(",")[1]} fill="currentColor" r="5" /></svg>;
 };
 
-const HomePage = ({ session, onCapture, onPaddocks }: HomePageProps) => {
+const HomePage = ({ session, onCapture, onHerd, onFinance, onPaddocks, onMilkControl }: HomePageProps) => {
   const { date } = nowInFarmTimezone();
   const [trendPeriod, setTrendPeriod] = useState<7 | 30>(7);
+  const [showAllAlerts, setShowAllAlerts] = useState(false);
+  const [isTrendVisible, setIsTrendVisible] = useState(false);
   const dashboard = useLiveQuery(() => getMilkDashboard(db, session.farmId, date), [session.farmId, date]);
   const decisions = useLiveQuery(() => getDecisionDashboard(db, session.farmId, date), [session.farmId, date]);
   const trend = decisions?.trend.slice(-trendPeriod) ?? [];
   const directionLabel = decisions?.trendDirection === "down" ? "Bajando frente a los días anteriores" : decisions?.trendDirection === "up" ? "Subiendo frente a los días anteriores" : decisions?.trendDirection === "steady" ? "Se mantiene estable" : "Aún no hay tendencia suficiente";
+  const visibleAlerts = showAllAlerts ? decisions?.alerts ?? [] : decisions?.alerts.slice(0, 2) ?? [];
+  const shortcuts = [
+    { label: "Rejo", description: "Animales y fichas", ariaLabel: "Abrir el rejo", icon: Beef, onClick: onHerd, tone: "bg-lime-50 text-lime-950 ring-lime-200" },
+    { label: "Potreros", description: "Rotación y lotes", ariaLabel: "Abrir potreros", icon: Sprout, onClick: onPaddocks, tone: "bg-sky-50 text-sky-950 ring-sky-200" },
+    { label: "Finanzas", description: "Pagos y costos", ariaLabel: "Abrir finanzas", icon: BadgeDollarSign, onClick: onFinance, tone: "bg-amber-50 text-amber-950 ring-amber-200" },
+    { label: "Control", description: "Litros por vaca", ariaLabel: "Abrir control lechero", icon: ClipboardPenLine, onClick: onMilkControl, tone: "bg-stone-100 text-stone-950 ring-stone-200" }
+  ];
 
   return (
-    <div className="space-y-6">
-      <div className="px-1">
-        <p className="text-sm font-bold uppercase tracking-[0.16em] text-lime-800">Resumen de hoy</p>
+    <div className="space-y-7">
+      <header className="px-1">
+        <p className="text-sm font-bold uppercase tracking-[0.16em] text-lime-800">Hoy</p>
         <h1 className="mt-1 text-3xl font-black tracking-tight text-stone-950 sm:text-4xl">La finca, al día.</h1>
-      </div>
+        <p className="mt-2 text-base text-stone-600">Empieza por lo que pasó hoy; el resto está a un toque.</p>
+      </header>
 
       <section className="rounded-3xl bg-lime-800 p-6 text-white shadow-[0_16px_35px_rgba(77,124,15,0.25)]">
         <p className="text-base font-bold text-lime-100">Medida del tanque · hoy</p>
@@ -168,34 +181,35 @@ const HomePage = ({ session, onCapture, onPaddocks }: HomePageProps) => {
           <Milk size={20} aria-hidden="true" />
           {dashboard?.todayLiters === undefined ? "Anotar la leche" : "Revisar la medida"}
         </Button>
+        <div className="mt-5 flex items-center justify-between gap-4 border-t border-lime-700 pt-4">
+          <span className="text-sm font-semibold text-lime-100">Promedio de 7 días</span>
+          <span className="text-lg font-black">{dashboard?.sevenDayAverage === undefined ? "Aún no" : `${dashboard.sevenDayAverage.toFixed(1)} L`}</span>
+        </div>
       </section>
-
-      <Card>
-        <p className="text-sm font-bold uppercase tracking-wide text-stone-500">Referencia</p>
-        <p className="mt-1 text-3xl font-black tracking-tight text-stone-950">
-          {dashboard?.sevenDayAverage === undefined ? "Aún no sabemos" : dashboard.sevenDayAverage.toFixed(1) + " L"}
-        </p>
-        <p className="mt-1 text-base text-stone-600">Promedio de los últimos 7 días.</p>
-      </Card>
-
-      <button type="button" className="flex w-full items-center justify-between rounded-3xl border border-lime-200 bg-lime-50 p-5 text-left shadow-[0_8px_28px_rgba(77,124,15,0.08)] transition active:scale-[0.99]" onClick={onPaddocks}>
-        <span><span className="flex items-center gap-2 text-sm font-bold uppercase tracking-wide text-lime-800"><Beef size={17} aria-hidden="true" />Manejo de la finca</span><span className="mt-1 block text-xl font-black text-stone-950">Potreros y rotación</span><span className="mt-1 block text-base text-stone-600">Revisa dónde está el rejo y los descansos.</span></span><span className="text-2xl font-black text-lime-800" aria-hidden="true">›</span>
-      </button>
 
       <section>
         <div className="flex items-end justify-between gap-3 px-1">
-          <div><p className="flex items-center gap-1.5 text-sm font-bold uppercase tracking-wide text-stone-500"><AlertTriangle size={16} aria-hidden="true" />Atención hoy</p><h2 className="mt-1 text-2xl font-black text-stone-950">Lo que requiere revisión</h2></div>
-          {decisions?.alerts.length ? <span className="rounded-full bg-amber-100 px-3 py-1 text-sm font-bold text-amber-950">{decisions.alerts.length}</span> : null}
+          <div><p className="flex items-center gap-1.5 text-sm font-bold uppercase tracking-wide text-stone-500"><AlertTriangle size={16} aria-hidden="true" />Atención hoy</p><h2 className="mt-1 text-2xl font-black text-stone-950">Lo importante</h2></div>
+          {decisions && decisions.alerts.length > 2 ? <button type="button" className="min-h-11 rounded-xl px-3 text-sm font-bold text-lime-800 underline" aria-expanded={showAllAlerts} onClick={() => setShowAllAlerts((current) => !current)}>{showAllAlerts ? "Ver menos" : `Ver todas (${decisions.alerts.length})`}</button> : null}
         </div>
         <div className="mt-3 space-y-3">
-          {decisions === undefined ? <Notice tone="info">Revisando los registros guardados en el celular…</Notice> : decisions.alerts.length === 0 ? <Notice tone="success">No hay alertas que requieran atención hoy.</Notice> : decisions.alerts.slice(0, 4).map((alert) => <Notice key={alert.id} tone={alert.tone === "critical" ? "error" : alert.tone === "attention" ? "warning" : "info"}><strong>{alert.title}</strong><br />{alert.detail}</Notice>)}
+          {decisions === undefined ? <Notice tone="info">Revisando los registros guardados en el celular…</Notice> : decisions.alerts.length === 0 ? <Notice tone="success">No hay alertas que requieran atención hoy.</Notice> : visibleAlerts.map((alert) => <Notice key={alert.id} tone={alert.tone === "critical" ? "error" : alert.tone === "attention" ? "warning" : "info"}><strong>{alert.title}</strong><br />{alert.detail}</Notice>)}
+        </div>
+      </section>
+
+      <section>
+        <div className="px-1"><p className="text-sm font-bold uppercase tracking-wide text-stone-500">Accesos de la finca</p><h2 className="mt-1 text-2xl font-black text-stone-950">¿Qué necesitas hacer?</h2></div>
+        <div className="mt-3 grid grid-cols-2 gap-3">
+          {shortcuts.map((shortcut) => {
+            const Icon = shortcut.icon;
+            return <button key={shortcut.label} type="button" aria-label={shortcut.ariaLabel} className={`flex min-h-36 flex-col items-start rounded-3xl p-4 text-left ring-1 transition active:scale-[0.98] ${shortcut.tone}`} onClick={shortcut.onClick}><span className="flex h-10 w-10 items-center justify-center rounded-2xl bg-white/80 shadow-sm"><Icon size={21} aria-hidden="true" /></span><span className="mt-4 text-lg font-black">{shortcut.label}</span><span className="mt-0.5 text-sm leading-snug opacity-75">{shortcut.description}</span></button>;
+          })}
         </div>
       </section>
 
       <Card>
-        <div className="flex items-start justify-between gap-4"><div><p className="flex items-center gap-1.5 text-sm font-bold uppercase tracking-wide text-stone-500"><ChartNoAxesCombined size={16} aria-hidden="true" />Tendencia de leche</p><h2 className="mt-1 text-2xl font-black text-stone-950">Medida del tanque</h2></div><div className="grid grid-cols-2 rounded-xl bg-stone-100 p-1"><button type="button" aria-pressed={trendPeriod === 7} className={`min-h-10 rounded-lg px-3 text-sm font-bold ${trendPeriod === 7 ? "bg-white text-lime-950 shadow-sm" : "text-stone-600"}`} onClick={() => setTrendPeriod(7)}>7 días</button><button type="button" aria-pressed={trendPeriod === 30} className={`min-h-10 rounded-lg px-3 text-sm font-bold ${trendPeriod === 30 ? "bg-white text-lime-950 shadow-sm" : "text-stone-600"}`} onClick={() => setTrendPeriod(30)}>30 días</button></div></div>
-        <div className="mt-5 text-lime-800"><MilkTrendChart points={trend} /></div>
-        <div className="mt-2 flex items-center gap-2 text-base font-semibold text-stone-700">{decisions?.trendDirection === "down" ? <TrendingDown size={20} className="text-amber-700" aria-hidden="true" /> : <TrendingUp size={20} className="text-lime-700" aria-hidden="true" />}{directionLabel}</div>
+        <div className="flex items-start justify-between gap-4"><div><p className="flex items-center gap-1.5 text-sm font-bold uppercase tracking-wide text-stone-500"><ChartNoAxesCombined size={16} aria-hidden="true" />Producción</p><h2 className="mt-1 text-2xl font-black text-stone-950">Tendencia de leche</h2><div className="mt-2 flex items-center gap-2 text-base font-semibold text-stone-700">{decisions?.trendDirection === "down" ? <TrendingDown size={20} className="text-amber-700" aria-hidden="true" /> : <TrendingUp size={20} className="text-lime-700" aria-hidden="true" />}{directionLabel}</div></div><button type="button" aria-expanded={isTrendVisible} className="min-h-11 shrink-0 rounded-xl bg-stone-100 px-3 text-sm font-bold text-stone-800" onClick={() => setIsTrendVisible((current) => !current)}>{isTrendVisible ? "Ocultar" : "Ver"}</button></div>
+        {isTrendVisible ? <div className="mt-5"><div className="flex justify-end"><div className="grid grid-cols-2 rounded-xl bg-stone-100 p-1"><button type="button" aria-pressed={trendPeriod === 7} className={`min-h-10 rounded-lg px-3 text-sm font-bold ${trendPeriod === 7 ? "bg-white text-lime-950 shadow-sm" : "text-stone-600"}`} onClick={() => setTrendPeriod(7)}>7 días</button><button type="button" aria-pressed={trendPeriod === 30} className={`min-h-10 rounded-lg px-3 text-sm font-bold ${trendPeriod === 30 ? "bg-white text-lime-950 shadow-sm" : "text-stone-600"}`} onClick={() => setTrendPeriod(30)}>30 días</button></div></div><div className="mt-4 text-lime-800"><MilkTrendChart points={trend} /></div></div> : null}
       </Card>
     </div>
   );
@@ -289,7 +303,7 @@ const AppShell = ({ session }: { session: FarmSession }) => {
       </header>
 
       <main className="flex-1 p-4 pb-6 pt-6 sm:p-6">
-        {page === "home" ? <HomePage session={session} onCapture={() => setPage("capture")} onPaddocks={() => openPaddocks("home")} /> : null}
+        {page === "home" ? <HomePage session={session} onCapture={() => setPage("capture")} onHerd={() => setPage("herd")} onFinance={() => setPage("finance")} onPaddocks={() => openPaddocks("home")} onMilkControl={() => openMilkControl("home")} /> : null}
         {page === "capture" ? <MilkCapturePage session={session} onSaved={() => setPage("home")} /> : null}
         {page === "herd" ? <HerdHubPage onAnimals={() => setPage("animals")} onMilkControl={() => openMilkControl("herd")} /> : null}
         {page === "animals" ? <AnimalsBrowserPage session={session} onMilkControl={() => openMilkControl("animals")} /> : null}
