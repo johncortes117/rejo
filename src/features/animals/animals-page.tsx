@@ -3,7 +3,10 @@ import { useLiveQuery } from "dexie-react-hooks";
 import { Button, Card, FieldLabel, Notice, TextInput } from "@/components/ui";
 import type { Animal, AnimalSex, FarmSession } from "@/domain/models";
 import { db } from "@/db/rejo-db";
+import { nowInFarmTimezone } from "@/domain/time";
 import { archiveAnimal, saveAnimal } from "@/features/animals/animals";
+import { recordHeat, recordPregnancyCheck, recordService } from "@/features/reproduction/events";
+import { computeReproductiveState } from "@/features/reproduction/reproductive-state";
 
 interface AnimalsPageProps {
   session: FarmSession;
@@ -29,6 +32,108 @@ const toFormState = (animal: Animal): AnimalFormState => ({
   approximateAgeMonths: ""
 });
 
+const reproductiveLabel = (status: ReturnType<typeof computeReproductiveState>["status"]): string => ({
+  open: "Vacía",
+  in_heat: "En celo",
+  served: "Servida",
+  pregnant_presumed: "Parece preñada",
+  pregnant_confirmed: "Preñez confirmada",
+  fresh: "Recién parida",
+  not_applicable: "No aplica"
+})[status];
+
+const ReproductionPanel = ({ animal, session }: { animal: Animal; session: FarmSession }) => {
+  const { date: today } = nowInFarmTimezone();
+  const [eventType, setEventType] = useState<"heat" | "service" | "check">("heat");
+  const [date, setDate] = useState(today);
+  const [serviceType, setServiceType] = useState<"natural" | "ai">("natural");
+  const [checkResult, setCheckResult] = useState<"pregnant" | "open" | "doubtful">("pregnant");
+  const [message, setMessage] = useState<string>();
+  const [error, setError] = useState<string>();
+  const facts = useLiveQuery(
+    async () => Promise.all([
+      db.heats.filter((item) => item.animalId === animal.id && !item.deletedAt).toArray(),
+      db.services.filter((item) => item.animalId === animal.id && !item.deletedAt).toArray(),
+      db.pregnancyChecks.filter((item) => item.animalId === animal.id && !item.deletedAt).toArray(),
+      db.calvings.filter((item) => item.animalId === animal.id && !item.deletedAt).toArray()
+    ]),
+    [animal.id],
+    [[], [], [], []]
+  );
+  const [heats, services, pregnancyChecks, calvings] = facts;
+  const state = computeReproductiveState({
+    asOf: today,
+    sex: animal.sex,
+    heats,
+    services,
+    pregnancyChecks,
+    calvings
+  });
+
+  const save = async () => {
+    setError(undefined);
+    setMessage(undefined);
+    const input = { farmId: session.farmId, animalId: animal.id, userId: session.userId, date };
+
+    try {
+      if (eventType === "heat") {
+        await recordHeat(db, input);
+        setMessage("El celo quedó guardado en el celular.");
+      } else if (eventType === "service") {
+        await recordService(db, { ...input, type: serviceType });
+        setMessage("El servicio quedó guardado en el celular.");
+      } else {
+        await recordPregnancyCheck(db, { ...input, result: checkResult });
+        setMessage("La palpación quedó guardada en el celular.");
+      }
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : "No se pudo guardar el evento.");
+    }
+  };
+
+  return (
+    <Card>
+      <h2 className="text-2xl font-black text-stone-950">{animal.name}</h2>
+      <p className="mt-1 text-lg font-bold text-lime-800">{reproductiveLabel(state.status)}</p>
+      {state.isRepeatBreeder ? <Notice tone="warning">Vaca repetidora: conviene consultar la prueba de brucelosis.</Notice> : null}
+      {state.expectedCalvingDate ? <p className="mt-2 text-lg text-stone-700">Parto estimado: {state.expectedCalvingDate}</p> : null}
+
+      {message ? <div className="mt-4"><Notice tone="success">{message}</Notice></div> : null}
+      {error ? <div className="mt-4"><Notice tone="error">{error}</Notice></div> : null}
+
+      <div className="mt-5 grid grid-cols-3 gap-2">
+        <Button type="button" className={eventType === "heat" ? "bg-lime-700 text-white" : "bg-stone-100 text-stone-800"} onClick={() => setEventType("heat")}>Celo</Button>
+        <Button type="button" className={eventType === "service" ? "bg-lime-700 text-white" : "bg-stone-100 text-stone-800"} onClick={() => setEventType("service")}>Servicio</Button>
+        <Button type="button" className={eventType === "check" ? "bg-lime-700 text-white" : "bg-stone-100 text-stone-800"} onClick={() => setEventType("check")}>Palpar</Button>
+      </div>
+
+      <div className="mt-5">
+        <FieldLabel>Fecha</FieldLabel>
+        <TextInput type="date" value={date} onChange={(event) => setDate(event.target.value)} />
+      </div>
+
+      {eventType === "service" ? (
+        <div className="mt-5 grid grid-cols-2 gap-3">
+          <Button type="button" className={serviceType === "natural" ? "bg-lime-700 text-white" : "bg-stone-100 text-stone-800"} onClick={() => setServiceType("natural")}>Natural</Button>
+          <Button type="button" className={serviceType === "ai" ? "bg-lime-700 text-white" : "bg-stone-100 text-stone-800"} onClick={() => setServiceType("ai")}>Inseminación</Button>
+        </div>
+      ) : null}
+
+      {eventType === "check" ? (
+        <div className="mt-5 grid grid-cols-3 gap-2">
+          <Button type="button" className={checkResult === "pregnant" ? "bg-lime-700 text-white" : "bg-stone-100 text-stone-800"} onClick={() => setCheckResult("pregnant")}>Preñada</Button>
+          <Button type="button" className={checkResult === "open" ? "bg-lime-700 text-white" : "bg-stone-100 text-stone-800"} onClick={() => setCheckResult("open")}>Vacía</Button>
+          <Button type="button" className={checkResult === "doubtful" ? "bg-lime-700 text-white" : "bg-stone-100 text-stone-800"} onClick={() => setCheckResult("doubtful")}>Dudosa</Button>
+        </div>
+      ) : null}
+
+      <Button type="button" className="mt-6 w-full bg-lime-700 text-white hover:bg-lime-800" onClick={() => void save()}>
+        Guardar evento
+      </Button>
+    </Card>
+  );
+};
+
 export const AnimalsPage = ({ session }: AnimalsPageProps) => {
   const animals = useLiveQuery(
     () =>
@@ -39,6 +144,7 @@ export const AnimalsPage = ({ session }: AnimalsPageProps) => {
     []
   );
   const [form, setForm] = useState<AnimalFormState>(emptyForm);
+  const [selectedAnimalId, setSelectedAnimalId] = useState<string>();
   const [message, setMessage] = useState<string>();
   const [error, setError] = useState<string>();
 
@@ -161,6 +267,13 @@ export const AnimalsPage = ({ session }: AnimalsPageProps) => {
                 <div className="flex gap-2">
                   <Button
                     type="button"
+                    className="bg-lime-100 text-lg text-lime-950"
+                    onClick={() => setSelectedAnimalId((current) => current === animal.id ? undefined : animal.id)}
+                  >
+                    {selectedAnimalId === animal.id ? "Cerrar" : "Ficha"}
+                  </Button>
+                  <Button
+                    type="button"
                     className="bg-stone-100 text-lg text-stone-800"
                     onClick={() => setForm(toFormState(animal))}
                   >
@@ -175,6 +288,7 @@ export const AnimalsPage = ({ session }: AnimalsPageProps) => {
                   </Button>
                 </div>
               </div>
+              {selectedAnimalId === animal.id ? <div className="mt-4"><ReproductionPanel animal={animal} session={session} /></div> : null}
             </Card>
           ))
         )}
