@@ -3,6 +3,7 @@ import { Beef, ChevronRight, ClipboardPenLine, HeartPulse, Settings2, ShieldPlus
 interface HerdHubPageProps {
   onAnimals: () => void;
   onReproduction: () => void;
+  onHealth: () => void;
   onMilkControl: () => void;
 }
 
@@ -52,7 +53,7 @@ const DestinationCard = ({
   );
 };
 
-export const HerdHubPage = ({ onAnimals, onReproduction, onMilkControl }: HerdHubPageProps) => (
+export const HerdHubPage = ({ onAnimals, onReproduction, onHealth, onMilkControl }: HerdHubPageProps) => (
   <div className="space-y-5">
     <header className="px-1">
       <p className="text-sm font-bold uppercase tracking-[0.16em] text-lime-800">Operación animal</p>
@@ -81,7 +82,7 @@ export const HerdHubPage = ({ onAnimals, onReproduction, onMilkControl }: HerdHu
         description="Anota atenciones y revisa cuándo la leche no se puede entregar."
         action="Abrir fichas"
         icon={ShieldPlus}
-        onClick={onAnimals}
+        onClick={onHealth}
         tone="sky"
       />
       <DestinationCard

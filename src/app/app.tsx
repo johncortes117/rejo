@@ -12,6 +12,7 @@ import { nowInFarmTimezone } from "@/domain/time";
 import type { FarmSession } from "@/domain/models";
 import { AnimalsBrowserPage } from "@/features/animals/animals-browser-page";
 import { ReproductionWorklistPage } from "@/features/animals/reproduction-worklist-page";
+import { HealthWorklistPage } from "@/features/health/health-worklist-page";
 import { MilkCapturePage } from "@/features/milk/milk-capture-page";
 import { getMilkDashboard } from "@/features/milk/dashboard";
 import { getDecisionDashboard, type MilkTrendPoint } from "@/features/insights/decision-dashboard";
@@ -23,7 +24,7 @@ import { HerdHubPage, MorePage } from "@/features/navigation/operational-hubs";
 import { pullFarmChanges, syncPendingOperations, type SyncStatus } from "@/sync/sync-service";
 import { isSupabaseConfigured, supabase } from "@/sync/supabase";
 
-type Page = "home" | "capture" | "herd" | "animals" | "reproduction" | "finance" | "paddocks" | "milk-control" | "more" | "settings";
+type Page = "home" | "capture" | "herd" | "animals" | "reproduction" | "health" | "finance" | "paddocks" | "milk-control" | "more" | "settings";
 const farmProvisionSchema = z.object({
   farmName: z.string().trim().min(1, "Escribe el nombre de la finca para empezar."),
   ownerName: z.string()
@@ -306,9 +307,10 @@ const AppShell = ({ session }: { session: FarmSession }) => {
       <main className="flex-1 p-4 pb-6 pt-6 sm:p-6">
         {page === "home" ? <HomePage session={session} onCapture={() => setPage("capture")} onHerd={() => setPage("herd")} onFinance={() => setPage("finance")} onPaddocks={() => openPaddocks("home")} onMilkControl={() => openMilkControl("home")} /> : null}
         {page === "capture" ? <MilkCapturePage session={session} onSaved={() => setPage("home")} /> : null}
-        {page === "herd" ? <HerdHubPage onAnimals={() => setPage("animals")} onReproduction={() => setPage("reproduction")} onMilkControl={() => openMilkControl("herd")} /> : null}
+        {page === "herd" ? <HerdHubPage onAnimals={() => setPage("animals")} onReproduction={() => setPage("reproduction")} onHealth={() => setPage("health")} onMilkControl={() => openMilkControl("herd")} /> : null}
         {page === "animals" ? <AnimalsBrowserPage session={session} onMilkControl={() => openMilkControl("animals")} /> : null}
         {page === "reproduction" ? <ReproductionWorklistPage session={session} onBack={() => setPage("herd")} /> : null}
+        {page === "health" ? <HealthWorklistPage session={session} onBack={() => setPage("herd")} /> : null}
         {page === "finance" ? <SettlementsPage session={session} /> : null}
         {page === "paddocks" ? <PaddocksPage session={session} onBack={() => setPage(returnPage)} /> : null}
         {page === "milk-control" ? <MilkControlPage session={session} onBack={() => setPage(returnPage)} /> : null}

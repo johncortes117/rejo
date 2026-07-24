@@ -119,4 +119,21 @@ describe("Phase 0 daily flow", () => {
 
     await screen.findByRole("heading", { name: "Reproducción" });
   });
+
+  it("opens the global health worklist from the herd hub", async () => {
+    Object.defineProperty(navigator, "onLine", { configurable: true, value: false });
+    render(<App />);
+
+    fireEvent.change(screen.getByPlaceholderText("Ejemplo: Finca El Capulí"), {
+      target: { value: "Finca La Pintada" }
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Empezar" }));
+
+    await screen.findByRole("heading", { name: "La finca, al día." });
+    fireEvent.click(screen.getByRole("button", { name: "Rejo" }));
+    await screen.findByRole("heading", { name: "El rejo" });
+    fireEvent.click(screen.getByRole("button", { name: /Sanidad/ }));
+
+    await screen.findByRole("heading", { name: "Sanidad" });
+  });
 });
