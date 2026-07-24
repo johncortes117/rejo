@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
 
 vi.mock("@/sync/supabase", () => ({
   isSupabaseConfigured: false,
@@ -51,5 +51,38 @@ describe("Phase 0 daily flow", () => {
     );
     expect(await db.tankReadings.count()).toBe(1);
     expect(await db.syncQueue.count()).toBeGreaterThanOrEqual(3);
+  });
+
+  it("opens the four operational destinations from the mobile navigation", async () => {
+    Object.defineProperty(navigator, "onLine", { configurable: true, value: false });
+    render(<App />);
+
+    fireEvent.change(screen.getByPlaceholderText("Ejemplo: Finca El Capulí"), {
+      target: { value: "Finca La Pintada" }
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Empezar" }));
+
+    await screen.findByRole("heading", { name: "La finca, al día." });
+    await screen.findByText("No hay alertas que requieran atención hoy.");
+
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: "Rejo" }));
+    });
+    await screen.findByRole("heading", { name: "El rejo" });
+
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: "Más" }));
+    });
+    await screen.findByRole("heading", { name: "Más" });
+
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: "Finanzas" }));
+    });
+    await screen.findByRole("heading", { name: "Liquidaciones" });
+
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: "Inicio" }));
+    });
+    await screen.findByRole("heading", { name: "La finca, al día." });
   });
 });

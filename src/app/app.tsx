@@ -4,7 +4,7 @@ import type { Session } from "@supabase/supabase-js";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
-import { AlertTriangle, BadgeDollarSign, Beef, ChartNoAxesCombined, ClipboardPenLine, CloudUpload, House, Milk, Settings, TrendingDown, TrendingUp } from "lucide-react";
+import { AlertTriangle, BadgeDollarSign, Beef, ChartNoAxesCombined, ClipboardPenLine, CloudUpload, House, Menu, Milk, TrendingDown, TrendingUp } from "lucide-react";
 import { Button, Card, FieldLabel, Notice, TextInput } from "@/components/ui";
 import { provisionFarm, readFarmSession } from "@/db/bootstrap";
 import { db } from "@/db/rejo-db";
@@ -18,10 +18,11 @@ import { SettingsPage } from "@/features/settings/settings-page";
 import { SettlementsPage } from "@/features/economics/settlements-page";
 import { PaddocksPage } from "@/features/paddocks/paddocks-page";
 import { MilkControlPage } from "@/features/milk-control/milk-control-page";
+import { HerdHubPage, MorePage } from "@/features/navigation/operational-hubs";
 import { pullFarmChanges, syncPendingOperations, type SyncStatus } from "@/sync/sync-service";
 import { isSupabaseConfigured, supabase } from "@/sync/supabase";
 
-type Page = "home" | "capture" | "animals" | "finance" | "paddocks" | "milk-control" | "settings";
+type Page = "home" | "capture" | "herd" | "animals" | "finance" | "paddocks" | "milk-control" | "more" | "settings";
 const farmProvisionSchema = z.object({
   farmName: z.string().trim().min(1, "Escribe el nombre de la finca para empezar."),
   ownerName: z.string()
@@ -208,9 +209,9 @@ interface NavigationProps {
 const Navigation = ({ currentPage, onNavigate }: NavigationProps) => {
   const links = [
     { page: "home" as const, label: "Inicio", icon: House },
-    { page: "animals" as const, label: "Mis vacas", icon: Beef },
+    { page: "herd" as const, label: "Rejo", icon: Beef },
     { page: "finance" as const, label: "Finanzas", icon: BadgeDollarSign },
-    { page: "settings" as const, label: "Ajustes", icon: Settings }
+    { page: "more" as const, label: "Más", icon: Menu }
   ];
 
   return (
@@ -235,6 +236,7 @@ const Navigation = ({ currentPage, onNavigate }: NavigationProps) => {
 
 const AppShell = ({ session }: { session: FarmSession }) => {
   const [page, setPage] = useState<Page>("home");
+  const [returnPage, setReturnPage] = useState<Page>("home");
   const [syncStatus, setSyncStatus] = useState<SyncStatus>();
   const pendingCount = useLiveQuery(
     () => db.syncQueue.filter((item) => item.farmId === session.farmId && !item.completedAt).count(),
@@ -257,6 +259,16 @@ const AppShell = ({ session }: { session: FarmSession }) => {
     return () => window.removeEventListener("online", onOnline);
   }, [sync]);
 
+  const openPaddocks = (from: Page) => {
+    setReturnPage(from);
+    setPage("paddocks");
+  };
+
+  const openMilkControl = (from: Page) => {
+    setReturnPage(from);
+    setPage("milk-control");
+  };
+
   return (
     <div className="mx-auto flex min-h-screen max-w-2xl flex-col bg-transparent">
       <header className="flex items-center justify-between gap-3 bg-lime-950 px-5 py-4 text-white">
@@ -277,12 +289,14 @@ const AppShell = ({ session }: { session: FarmSession }) => {
       </header>
 
       <main className="flex-1 p-4 pb-6 pt-6 sm:p-6">
-        {page === "home" ? <HomePage session={session} onCapture={() => setPage("capture")} onPaddocks={() => setPage("paddocks")} /> : null}
+        {page === "home" ? <HomePage session={session} onCapture={() => setPage("capture")} onPaddocks={() => openPaddocks("home")} /> : null}
         {page === "capture" ? <MilkCapturePage session={session} onSaved={() => setPage("home")} /> : null}
-        {page === "animals" ? <AnimalsBrowserPage session={session} onMilkControl={() => setPage("milk-control")} /> : null}
+        {page === "herd" ? <HerdHubPage onAnimals={() => setPage("animals")} onMilkControl={() => openMilkControl("herd")} /> : null}
+        {page === "animals" ? <AnimalsBrowserPage session={session} onMilkControl={() => openMilkControl("animals")} /> : null}
         {page === "finance" ? <SettlementsPage session={session} /> : null}
-        {page === "paddocks" ? <PaddocksPage session={session} onBack={() => setPage("home")} /> : null}
-        {page === "milk-control" ? <MilkControlPage session={session} onBack={() => setPage("animals")} /> : null}
+        {page === "paddocks" ? <PaddocksPage session={session} onBack={() => setPage(returnPage)} /> : null}
+        {page === "milk-control" ? <MilkControlPage session={session} onBack={() => setPage(returnPage)} /> : null}
+        {page === "more" ? <MorePage onPaddocks={() => openPaddocks("more")} onSettings={() => setPage("settings")} /> : null}
         {page === "settings" ? <SettingsPage session={session} /> : null}
       </main>
 
