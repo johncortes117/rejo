@@ -34,4 +34,17 @@ describe("updateHealthPlanTask", () => {
     expect(await database.healthPlanTasks.get(task.id)).toMatchObject({ dueDate: "2026-10-29" });
     expect(await database.syncQueue.count()).toBe(1);
   });
+
+  it("schedules the next recurring task after completion", async () => {
+    const database = new RejoDb(`rejo-plan-task-test-${crypto.randomUUID()}`);
+    databases.push(database);
+    const task = { ...createTask(), recurrenceDays: 90 };
+    await database.healthPlanTasks.put(task);
+
+    await updateHealthPlanTask(database, task, "complete", new Date("2026-10-22T12:00:00.000Z"));
+
+    const tasks = await database.healthPlanTasks.toArray();
+    expect(tasks).toHaveLength(2);
+    expect(tasks.find((item) => item.id !== task.id)).toMatchObject({ dueDate: "2027-01-20", completedAt: undefined });
+  });
 });

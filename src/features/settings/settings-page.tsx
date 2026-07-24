@@ -7,6 +7,7 @@ import { db } from "@/db/rejo-db";
 import { saveFarmSettings } from "@/features/settings/settings";
 import { nowInFarmTimezone } from "@/domain/time";
 import { createDefaultPreventivePlan } from "@/features/health/default-plan";
+import { updateHealthPlanTask } from "@/features/health/plan-tasks";
 
 interface SettingsPageProps {
   session: FarmSession;
@@ -46,7 +47,7 @@ export const SettingsPage = ({ session }: SettingsPageProps) => {
     []
   );
   const preventiveTasks = useLiveQuery(
-    () => db.healthPlanTasks.filter((task) => task.farmId === session.farmId && task.isTemplate && !task.deletedAt).sortBy("dueDate"),
+    () => db.healthPlanTasks.filter((task) => task.farmId === session.farmId && task.isTemplate && !task.deletedAt && !task.completedAt && !task.ignoredAt).sortBy("dueDate"),
     [session.farmId],
     []
   );
@@ -105,6 +106,17 @@ export const SettingsPage = ({ session }: SettingsPageProps) => {
       setMessage(tasks.length === 0 ? "El plan sanitario mínimo ya estaba activo." : "El plan sanitario mínimo quedó guardado en el celular.");
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : "No se pudo activar el plan sanitario.");
+    }
+  };
+
+  const updatePreventiveTask = async (task: typeof preventiveTasks[number], action: "complete" | "postpone" | "ignore") => {
+    setMessage(undefined);
+    setError(undefined);
+    try {
+      await updateHealthPlanTask(db, task, action);
+      setMessage(action === "complete" ? "La tarea quedó completada y la siguiente fecha fue programada." : action === "postpone" ? "La tarea se pospuso siete días." : "La tarea quedó ignorada.");
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : "No se pudo actualizar la tarea.");
     }
   };
 
@@ -212,6 +224,11 @@ export const SettingsPage = ({ session }: SettingsPageProps) => {
               <div className="rounded-lg bg-amber-50 p-4" key={task.id}>
                 <p className="text-lg font-bold">{task.taskType === "deworming" ? "Curada" : "Prueba anual de brucelosis"}</p>
                 <p className="text-lg text-stone-700">Próxima fecha: {task.dueDate}</p>
+                <div className="mt-3 grid grid-cols-3 gap-2">
+                  <Button type="button" className="bg-lime-700 text-white" onClick={() => void updatePreventiveTask(task, "complete")}>Hecha</Button>
+                  <Button type="button" className="bg-stone-100 text-stone-800" onClick={() => void updatePreventiveTask(task, "postpone")}>+7 días</Button>
+                  <Button type="button" className="bg-red-50 text-red-900" onClick={() => void updatePreventiveTask(task, "ignore")}>Ignorar</Button>
+                </div>
               </div>
             ))}
           </div>
