@@ -19,7 +19,10 @@ const remoteTableNames: Record<SyncQueueItem["entityTable"], string> = {
   health_plan_tasks: "health_plan_tasks",
   milk_quality_tests: "milk_quality_tests",
   price_settings: "price_settings",
-  settlements: "settlements"
+  settlements: "settlements",
+  transactions: "transactions",
+  assets: "assets",
+  labor: "labor"
 };
 
 const camelToSnake: Record<string, string> = {
@@ -92,7 +95,14 @@ const camelToSnake: Record<string, string> = {
   varianceLiters: "variance_liters",
   varianceAmount: "variance_amount",
   legalPriceComputed: "legal_price_computed",
-  legalVariancePerLiter: "legal_variance_per_liter"
+  legalVariancePerLiter: "legal_variance_per_liter",
+  purchaseDate: "purchase_date",
+  purchaseValue: "purchase_value",
+  usefulLifeYears: "useful_life_years",
+  salvageValue: "salvage_value",
+  workerName: "worker_name",
+  daysWorked: "days_worked",
+  isEstimated: "is_estimated"
 };
 
 const snakeToCamel = Object.fromEntries(
@@ -125,7 +135,10 @@ type LocalTableKey =
   | "healthPlanTasks"
   | "milkQualityTests"
   | "priceSettings"
-  | "settlements";
+  | "settlements"
+  | "transactions"
+  | "assets"
+  | "labor";
 
 const localTableKeys: Record<SyncQueueItem["entityTable"], LocalTableKey> = {
   farms: "farms",
@@ -143,7 +156,10 @@ const localTableKeys: Record<SyncQueueItem["entityTable"], LocalTableKey> = {
   health_plan_tasks: "healthPlanTasks",
   milk_quality_tests: "milkQualityTests",
   price_settings: "priceSettings",
-  settlements: "settlements"
+  settlements: "settlements",
+  transactions: "transactions",
+  assets: "assets",
+  labor: "labor"
 };
 
 const getTable = (

@@ -198,6 +198,32 @@ export interface Settlement extends RecordMeta {
   legalVariancePerLiter?: number;
 }
 
+export interface Transaction extends RecordMeta {
+  date: string;
+  direction: "income" | "expense";
+  category: string;
+  amount: number;
+  description?: string;
+  isEstimated: boolean;
+}
+
+export interface Asset extends RecordMeta {
+  name: string;
+  category: string;
+  purchaseDate: string;
+  purchaseValue: number;
+  usefulLifeYears: number;
+  salvageValue: number;
+}
+
+export interface LaborRecord extends RecordMeta {
+  workerName: string;
+  type: "daily" | "monthly" | "family";
+  rate: number;
+  daysWorked: number;
+  period: string;
+}
+
 export type SyncOperation = "upsert" | "soft_delete";
 
 export interface SyncQueueItem {
@@ -219,7 +245,10 @@ export interface SyncQueueItem {
     | "health_plan_tasks"
     | "milk_quality_tests"
     | "price_settings"
-    | "settlements";
+    | "settlements"
+    | "transactions"
+    | "assets"
+    | "labor";
   entityId: EntityId;
   operation: SyncOperation;
   payload: Record<string, unknown>;
