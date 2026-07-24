@@ -61,7 +61,7 @@ describe("Phase 0 daily flow", () => {
     fireEvent.click(screen.getByRole("button", { name: "Empezar" }));
 
     await screen.findByRole("heading", { name: "La finca, al día." });
-    fireEvent.click(screen.getByRole("button", { name: "Anotar la leche" }));
+    fireEvent.click(screen.getByRole("button", { name: "Anotar" }));
     fireEvent.change(screen.getByPlaceholderText("Ejemplo: 205"), { target: { value: "205" } });
     fireEvent.click(screen.getByRole("button", { name: "Guardar la medida" }));
 
@@ -82,7 +82,7 @@ describe("Phase 0 daily flow", () => {
     fireEvent.click(screen.getByRole("button", { name: "Empezar" }));
 
     await screen.findByRole("heading", { name: "La finca, al día." });
-    await screen.findByText("No hay alertas que requieran atención hoy.");
+    await screen.findByText("Todo en orden · sin alertas para hoy.");
 
     await act(async () => {
       fireEvent.click(screen.getByRole("button", { name: "Rejo" }));
@@ -120,6 +120,23 @@ describe("Phase 0 daily flow", () => {
     await screen.findByRole("heading", { name: "Potreros y rotación" });
     fireEvent.click(screen.getByRole("button", { name: "Volver al inicio" }));
     await screen.findByRole("heading", { name: "La finca, al día." });
+  });
+
+  it("keeps the home screen concise when cloud backup is unavailable", async () => {
+    Object.defineProperty(navigator, "onLine", { configurable: true, value: false });
+    render(<App />);
+
+    fireEvent.change(screen.getByPlaceholderText("Ejemplo: Finca El Capulí"), {
+      target: { value: "Finca La Pintada" }
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Empezar" }));
+
+    await screen.findByRole("heading", { name: "La finca, al día." });
+    expect(screen.queryByRole("status")).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Respaldar" })).not.toBeInTheDocument();
+    expect(screen.queryByText("Empieza por lo que pasó hoy; el resto está a un toque.")).not.toBeInTheDocument();
+    expect(screen.queryByText("Tendencia de leche")).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Anotar" })).toBeInTheDocument();
   });
 
   it("opens the global reproduction worklist from the herd hub", async () => {

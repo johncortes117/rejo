@@ -4,7 +4,7 @@ import type { Session } from "@supabase/supabase-js";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
-import { AlertTriangle, BadgeDollarSign, Beef, ChartNoAxesCombined, ClipboardPenLine, CloudUpload, House, Menu, Milk, Sprout, TrendingDown, TrendingUp } from "lucide-react";
+import { AlertTriangle, BadgeDollarSign, Beef, ChartNoAxesCombined, CircleCheck, ClipboardPenLine, CloudUpload, House, Menu, Milk, Sprout, TrendingDown, TrendingUp } from "lucide-react";
 import { Button, Card, FieldLabel, Notice, TextInput } from "@/components/ui";
 import { provisionFarm, readFarmSession } from "@/db/bootstrap";
 import { db } from "@/db/rejo-db";
@@ -30,22 +30,6 @@ const farmProvisionSchema = z.object({
   ownerName: z.string()
 });
 type FarmProvisionForm = z.infer<typeof farmProvisionSchema>;
-
-const syncMessage = (status: SyncStatus | undefined, pendingCount: number): string => {
-  if (!status || status.state === "offline") {
-    return pendingCount > 0 ? "Guardado en el celular" : "Sin conexión";
-  }
-
-  if (status.state === "unconfigured") {
-    return pendingCount > 0 ? "Guardado en el celular" : "Listo en el celular";
-  }
-
-  if (status.state === "failed") {
-    return "Guardado en el celular";
-  }
-
-  return pendingCount > 0 ? "Guardado en el celular" : "Ya se envió";
-};
 
 interface ProvisioningPageProps {
   onProvisioned: (session: FarmSession) => void;
@@ -143,7 +127,7 @@ const MilkTrendChart = ({ points }: { points: MilkTrendPoint[] }) => {
     const y = 100 - ((point.liters - minimum) / range) * 76;
     return `${x},${y}`;
   }).join(" ");
-  return <svg className="h-32 w-full overflow-visible" viewBox="0 0 320 112" role="img" aria-label={`Tendencia de ${points.length} medidas del tanque, entre ${minimum.toFixed(1)} y ${maximum.toFixed(1)} litros`}><line x1="12" x2="308" y1="100" y2="100" stroke="currentColor" strokeOpacity="0.15" /><polyline points={coordinates} fill="none" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="4" /><circle cx={coordinates.split(" ").at(-1)?.split(",")[0]} cy={coordinates.split(" ").at(-1)?.split(",")[1]} fill="currentColor" r="5" /></svg>;
+  return <svg className="h-24 w-full overflow-visible" viewBox="0 0 320 112" role="img" aria-label={`Tendencia de ${points.length} medidas del tanque, entre ${minimum.toFixed(1)} y ${maximum.toFixed(1)} litros`}><line x1="12" x2="308" y1="100" y2="100" stroke="currentColor" strokeOpacity="0.15" /><polyline points={coordinates} fill="none" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="4" /><circle cx={coordinates.split(" ").at(-1)?.split(",")[0]} cy={coordinates.split(" ").at(-1)?.split(",")[1]} fill="currentColor" r="5" /></svg>;
 };
 
 const HomePage = ({ session, onCapture, onHerd, onFinance, onPaddocks, onMilkControl }: HomePageProps) => {
@@ -157,62 +141,64 @@ const HomePage = ({ session, onCapture, onHerd, onFinance, onPaddocks, onMilkCon
   const directionLabel = decisions?.trendDirection === "down" ? "Bajando frente a los días anteriores" : decisions?.trendDirection === "up" ? "Subiendo frente a los días anteriores" : decisions?.trendDirection === "steady" ? "Se mantiene estable" : "Aún no hay tendencia suficiente";
   const visibleAlerts = showAllAlerts ? decisions?.alerts ?? [] : decisions?.alerts.slice(0, 2) ?? [];
   const shortcuts = [
-    { label: "Rejo", description: "Animales y fichas", ariaLabel: "Abrir el rejo", icon: Beef, onClick: onHerd, tone: "bg-lime-50 text-lime-950 ring-lime-200" },
-    { label: "Potreros", description: "Rotación y lotes", ariaLabel: "Abrir potreros", icon: Sprout, onClick: onPaddocks, tone: "bg-sky-50 text-sky-950 ring-sky-200" },
-    { label: "Finanzas", description: "Pagos y costos", ariaLabel: "Abrir finanzas", icon: BadgeDollarSign, onClick: onFinance, tone: "bg-amber-50 text-amber-950 ring-amber-200" },
-    { label: "Control", description: "Litros por vaca", ariaLabel: "Abrir control lechero", icon: ClipboardPenLine, onClick: onMilkControl, tone: "bg-stone-100 text-stone-950 ring-stone-200" }
+    { label: "Rejo", ariaLabel: "Abrir el rejo", icon: Beef, onClick: onHerd, iconTone: "bg-lime-100 text-lime-900" },
+    { label: "Potreros", ariaLabel: "Abrir potreros", icon: Sprout, onClick: onPaddocks, iconTone: "bg-sky-100 text-sky-900" },
+    { label: "Finanzas", ariaLabel: "Abrir finanzas", icon: BadgeDollarSign, onClick: onFinance, iconTone: "bg-amber-100 text-amber-900" },
+    { label: "Control lechero", ariaLabel: "Abrir control lechero", icon: ClipboardPenLine, onClick: onMilkControl, iconTone: "bg-stone-100 text-stone-800" }
   ];
+  const hasAlerts = (decisions?.alerts.length ?? 0) > 0;
+  const hasTrend = trend.length >= 2;
 
   return (
-    <div className="space-y-7">
-      <header className="px-1">
+    <div className="space-y-5">
+      <header className="flex items-end justify-between gap-3 px-1">
+        <div>
         <p className="text-sm font-bold uppercase tracking-[0.16em] text-lime-800">Hoy</p>
-        <h1 className="mt-1 text-3xl font-black tracking-tight text-stone-950 sm:text-4xl">La finca, al día.</h1>
-        <p className="mt-2 text-base text-stone-600">Empieza por lo que pasó hoy; el resto está a un toque.</p>
+        <h1 className="mt-1 text-2xl font-black tracking-tight text-stone-950 sm:text-3xl">La finca, al día.</h1>
+        </div>
+        <span className="rounded-full bg-lime-100 px-3 py-1.5 text-sm font-bold text-lime-950">{dashboard?.todayLiters === undefined ? "Medida pendiente" : "Medida lista"}</span>
       </header>
 
-      <section className="rounded-3xl bg-lime-800 p-6 text-white shadow-[0_16px_35px_rgba(77,124,15,0.25)]">
-        <p className="text-base font-bold text-lime-100">Medida del tanque · hoy</p>
-        <p className="mt-3 text-6xl font-black tracking-tight sm:text-7xl">
-          {dashboard?.todayLiters === undefined ? "—" : dashboard.todayLiters.toFixed(1)}
-        </p>
-        <p className="mt-1 text-lg font-semibold text-lime-100">
-          {dashboard?.todayLiters === undefined ? "Aún falta la medida de hoy" : "litros medidos en el tanque"}
-        </p>
-        <Button type="button" className="mt-6 w-full bg-white text-lime-950 hover:bg-lime-50" onClick={onCapture}>
-          <Milk size={20} aria-hidden="true" />
-          {dashboard?.todayLiters === undefined ? "Anotar la leche" : "Revisar la medida"}
-        </Button>
-        <div className="mt-5 flex items-center justify-between gap-4 border-t border-lime-700 pt-4">
-          <span className="text-sm font-semibold text-lime-100">Promedio de 7 días</span>
-          <span className="text-lg font-black">{dashboard?.sevenDayAverage === undefined ? "Aún no" : `${dashboard.sevenDayAverage.toFixed(1)} L`}</span>
+      <section className="rounded-3xl bg-lime-800 p-5 text-white shadow-[0_14px_30px_rgba(77,124,15,0.22)]">
+        <div className="flex items-center gap-3">
+          <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-lime-700 text-white"><Milk size={24} aria-hidden="true" /></span>
+          <div className="min-w-0 flex-1">
+            <p className="text-sm font-bold text-lime-100">Medida del tanque</p>
+            <p className="mt-0.5 text-4xl font-black tracking-tight sm:text-5xl">{dashboard?.todayLiters === undefined ? "—" : dashboard.todayLiters.toFixed(1)}<span className="ml-1 text-xl text-lime-100">L</span></p>
+          </div>
+          <Button type="button" className="min-h-11 shrink-0 bg-white px-3 text-sm text-lime-950 hover:bg-lime-50" onClick={onCapture}>
+            {dashboard?.todayLiters === undefined ? "Anotar" : "Revisar"}
+          </Button>
+        </div>
+        <div className="mt-4 flex items-center justify-between gap-4 border-t border-lime-700 pt-3 text-sm">
+          <span className="font-semibold text-lime-100">Promedio 7 días</span>
+          <span className="font-black">{dashboard?.sevenDayAverage === undefined ? "Sin promedio" : `${dashboard.sevenDayAverage.toFixed(1)} L`}</span>
         </div>
       </section>
 
-      <section>
+      <section className="space-y-3">
+        {decisions === undefined ? <Notice tone="info">Revisando los registros guardados en el celular…</Notice> : !hasAlerts ? <div className="flex min-h-14 items-center gap-3 rounded-2xl bg-lime-50 px-4 text-lime-950 ring-1 ring-lime-200"><CircleCheck className="shrink-0" size={22} aria-hidden="true" /><span className="font-bold">Todo en orden · sin alertas para hoy.</span></div> : <>
         <div className="flex items-end justify-between gap-3 px-1">
-          <div><p className="flex items-center gap-1.5 text-sm font-bold uppercase tracking-wide text-stone-500"><AlertTriangle size={16} aria-hidden="true" />Atención hoy</p><h2 className="mt-1 text-2xl font-black text-stone-950">Lo importante</h2></div>
+          <div><p className="flex items-center gap-1.5 text-sm font-bold uppercase tracking-wide text-stone-500"><AlertTriangle size={16} aria-hidden="true" />Atención</p><h2 className="mt-1 text-xl font-black text-stone-950">Revisa esto</h2></div>
           {decisions && decisions.alerts.length > 2 ? <button type="button" className="min-h-11 rounded-xl px-3 text-sm font-bold text-lime-800 underline" aria-expanded={showAllAlerts} onClick={() => setShowAllAlerts((current) => !current)}>{showAllAlerts ? "Ver menos" : `Ver todas (${decisions.alerts.length})`}</button> : null}
         </div>
         <div className="mt-3 space-y-3">
-          {decisions === undefined ? <Notice tone="info">Revisando los registros guardados en el celular…</Notice> : decisions.alerts.length === 0 ? <Notice tone="success">No hay alertas que requieran atención hoy.</Notice> : visibleAlerts.map((alert) => <Notice key={alert.id} tone={alert.tone === "critical" ? "error" : alert.tone === "attention" ? "warning" : "info"}><strong>{alert.title}</strong><br />{alert.detail}</Notice>)}
+          {visibleAlerts.map((alert) => <Notice key={alert.id} tone={alert.tone === "critical" ? "error" : alert.tone === "attention" ? "warning" : "info"}><strong>{alert.title}</strong><br />{alert.detail}</Notice>)}
         </div>
+        </>}
       </section>
 
       <section>
-        <div className="px-1"><p className="text-sm font-bold uppercase tracking-wide text-stone-500">Accesos de la finca</p><h2 className="mt-1 text-2xl font-black text-stone-950">¿Qué necesitas hacer?</h2></div>
-        <div className="mt-3 grid grid-cols-2 gap-3">
+        <div className="px-1"><p className="text-sm font-bold uppercase tracking-wide text-stone-500">Accesos rápidos</p></div>
+        <div className="mt-2 grid grid-cols-2 gap-2.5">
           {shortcuts.map((shortcut) => {
             const Icon = shortcut.icon;
-            return <button key={shortcut.label} type="button" aria-label={shortcut.ariaLabel} className={`flex min-h-36 flex-col items-start rounded-3xl p-4 text-left ring-1 transition active:scale-[0.98] ${shortcut.tone}`} onClick={shortcut.onClick}><span className="flex h-10 w-10 items-center justify-center rounded-2xl bg-white/80 shadow-sm"><Icon size={21} aria-hidden="true" /></span><span className="mt-4 text-lg font-black">{shortcut.label}</span><span className="mt-0.5 text-sm leading-snug opacity-75">{shortcut.description}</span></button>;
+            return <button key={shortcut.label} type="button" aria-label={shortcut.ariaLabel} className="flex min-h-20 items-center gap-3 rounded-2xl border border-stone-200 bg-white p-3 text-left shadow-[0_6px_18px_rgba(28,25,23,0.04)] transition active:scale-[0.98]" onClick={shortcut.onClick}><span className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl ${shortcut.iconTone}`}><Icon size={21} aria-hidden="true" /></span><span className="text-base font-black leading-tight text-stone-950">{shortcut.label}</span></button>;
           })}
         </div>
       </section>
 
-      <Card>
-        <div className="flex items-start justify-between gap-4"><div><p className="flex items-center gap-1.5 text-sm font-bold uppercase tracking-wide text-stone-500"><ChartNoAxesCombined size={16} aria-hidden="true" />Producción</p><h2 className="mt-1 text-2xl font-black text-stone-950">Tendencia de leche</h2><div className="mt-2 flex items-center gap-2 text-base font-semibold text-stone-700">{decisions?.trendDirection === "down" ? <TrendingDown size={20} className="text-amber-700" aria-hidden="true" /> : <TrendingUp size={20} className="text-lime-700" aria-hidden="true" />}{directionLabel}</div></div><button type="button" aria-expanded={isTrendVisible} className="min-h-11 shrink-0 rounded-xl bg-stone-100 px-3 text-sm font-bold text-stone-800" onClick={() => setIsTrendVisible((current) => !current)}>{isTrendVisible ? "Ocultar" : "Ver"}</button></div>
-        {isTrendVisible ? <div className="mt-5"><div className="flex justify-end"><div className="grid grid-cols-2 rounded-xl bg-stone-100 p-1"><button type="button" aria-pressed={trendPeriod === 7} className={`min-h-10 rounded-lg px-3 text-sm font-bold ${trendPeriod === 7 ? "bg-white text-lime-950 shadow-sm" : "text-stone-600"}`} onClick={() => setTrendPeriod(7)}>7 días</button><button type="button" aria-pressed={trendPeriod === 30} className={`min-h-10 rounded-lg px-3 text-sm font-bold ${trendPeriod === 30 ? "bg-white text-lime-950 shadow-sm" : "text-stone-600"}`} onClick={() => setTrendPeriod(30)}>30 días</button></div></div><div className="mt-4 text-lime-800"><MilkTrendChart points={trend} /></div></div> : null}
-      </Card>
+      {hasTrend ? <Card><div className="flex items-center justify-between gap-4"><div><p className="flex items-center gap-1.5 text-sm font-bold uppercase tracking-wide text-stone-500"><ChartNoAxesCombined size={16} aria-hidden="true" />Producción</p><div className="mt-1 flex items-center gap-2 text-base font-bold text-stone-800">{decisions?.trendDirection === "down" ? <TrendingDown size={19} className="text-amber-700" aria-hidden="true" /> : <TrendingUp size={19} className="text-lime-700" aria-hidden="true" />}{directionLabel}</div></div><button type="button" aria-expanded={isTrendVisible} className="min-h-10 shrink-0 rounded-xl bg-stone-100 px-3 text-sm font-bold text-stone-800" onClick={() => setIsTrendVisible((current) => !current)}>{isTrendVisible ? "Ocultar" : "Ver"}</button></div>{isTrendVisible ? <div className="mt-4"><div className="flex justify-end"><div className="grid grid-cols-2 rounded-xl bg-stone-100 p-1"><button type="button" aria-pressed={trendPeriod === 7} className={`min-h-10 rounded-lg px-3 text-sm font-bold ${trendPeriod === 7 ? "bg-white text-lime-950 shadow-sm" : "text-stone-600"}`} onClick={() => setTrendPeriod(7)}>7 días</button><button type="button" aria-pressed={trendPeriod === 30} className={`min-h-10 rounded-lg px-3 text-sm font-bold ${trendPeriod === 30 ? "bg-white text-lime-950 shadow-sm" : "text-stone-600"}`} onClick={() => setTrendPeriod(30)}>30 días</button></div></div><div className="mt-3 text-lime-800"><MilkTrendChart points={trend} /></div></div> : null}</Card> : null}
     </div>
   );
 };
@@ -284,22 +270,24 @@ const AppShell = ({ session }: { session: FarmSession }) => {
     setReturnPage(from);
     setPage("milk-control");
   };
+  const isOffline = syncStatus?.state === "offline" || !navigator.onLine;
+  const canBackUp = isSupabaseConfigured && pendingCount > 0;
 
   return (
     <div className="mx-auto flex min-h-screen max-w-2xl flex-col bg-transparent">
-      <header className="flex items-center justify-between gap-3 bg-lime-950 px-5 py-4 text-white">
-        <div>
-          <p className="text-xl font-black tracking-wide">REJO</p>
-          <p className="mt-1 inline-flex rounded-full bg-lime-900 px-2.5 py-1 text-sm font-semibold text-lime-100">{syncMessage(syncStatus, pendingCount)}</p>
-        </div>
-        {pendingCount > 0 ? (
+      <header className="flex min-h-16 items-center justify-between gap-3 bg-lime-950 px-4 py-3 text-white sm:px-6">
+        <p className="text-xl font-black tracking-wide">REJO</p>
+        {canBackUp ? (
           <button
-            className="min-h-12 rounded-2xl bg-white px-4 text-base font-bold text-lime-950"
+            className="inline-flex min-h-11 shrink-0 items-center gap-2 rounded-xl bg-white px-3 text-sm font-bold text-lime-950 disabled:opacity-60"
             type="button"
+            disabled={isOffline}
+            aria-label={isOffline ? "No se puede respaldar sin señal" : `Respaldar ${pendingCount} cambios en la nube`}
+            title="Envía los cambios guardados en este teléfono a la nube"
             onClick={() => void sync()}
           >
-            <CloudUpload size={20} aria-hidden="true" />
-            Respaldar
+            <CloudUpload size={18} aria-hidden="true" />
+            {isOffline ? "Sin señal" : `Respaldar ${pendingCount}`}
           </button>
         ) : null}
       </header>
