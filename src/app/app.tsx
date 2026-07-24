@@ -17,7 +17,7 @@ import { MilkCapturePage } from "@/features/milk/milk-capture-page";
 import { getMilkDashboard } from "@/features/milk/dashboard";
 import { getDecisionDashboard, type MilkTrendPoint } from "@/features/insights/decision-dashboard";
 import { SettingsPage } from "@/features/settings/settings-page";
-import { SettlementsPage } from "@/features/economics/settlements-page";
+import { FinancePage } from "@/features/economics/finance-page";
 import { PaddocksPage } from "@/features/paddocks/paddocks-page";
 import { MilkControlPage } from "@/features/milk-control/milk-control-page";
 import { HerdHubPage, MorePage } from "@/features/navigation/operational-hubs";
@@ -311,7 +311,7 @@ const AppShell = ({ session }: { session: FarmSession }) => {
         {page === "animals" ? <AnimalsBrowserPage session={session} onMilkControl={() => openMilkControl("animals")} /> : null}
         {page === "reproduction" ? <ReproductionWorklistPage session={session} onBack={() => setPage("herd")} /> : null}
         {page === "health" ? <HealthWorklistPage session={session} onBack={() => setPage("herd")} /> : null}
-        {page === "finance" ? <SettlementsPage session={session} /> : null}
+        {page === "finance" ? <FinancePage session={session} /> : null}
         {page === "paddocks" ? <PaddocksPage session={session} onBack={() => setPage(returnPage)} /> : null}
         {page === "milk-control" ? <MilkControlPage session={session} onBack={() => setPage(returnPage)} /> : null}
         {page === "more" ? <MorePage onPaddocks={() => openPaddocks("more")} onSettings={() => setPage("settings")} /> : null}

@@ -17,6 +17,25 @@ const clearDatabase = async () => {
     db.animals.clear(),
     db.tankReadings.clear(),
     db.milkUsages.clear(),
+    db.heats.clear(),
+    db.services.clear(),
+    db.pregnancyChecks.clear(),
+    db.calvings.clear(),
+    db.dryOffs.clear(),
+    db.healthEvents.clear(),
+    db.healthPlanTasks.clear(),
+    db.herdGroups.clear(),
+    db.milkQualityTests.clear(),
+    db.priceSettings.clear(),
+    db.settlements.clear(),
+    db.transactions.clear(),
+    db.assets.clear(),
+    db.labor.clear(),
+    db.paddocks.clear(),
+    db.grazingLots.clear(),
+    db.grazingRecords.clear(),
+    db.milkControlSessions.clear(),
+    db.milkControlRecords.clear(),
     db.syncQueue.clear()
   ]);
 };
@@ -78,7 +97,7 @@ describe("Phase 0 daily flow", () => {
     await act(async () => {
       fireEvent.click(screen.getByRole("button", { name: "Finanzas" }));
     });
-    await screen.findByRole("heading", { name: "Liquidaciones" });
+    await screen.findByRole("heading", { name: "Finanzas" });
 
     await act(async () => {
       fireEvent.click(screen.getByRole("button", { name: "Inicio" }));
@@ -153,5 +172,51 @@ describe("Phase 0 daily flow", () => {
 
     await screen.findByRole("heading", { name: "Configuración de la finca" });
     expect(screen.queryByText("Plan sanitario mínimo")).not.toBeInTheDocument();
+  });
+
+  it("opens finances as a summary before opening a settlement form", async () => {
+    Object.defineProperty(navigator, "onLine", { configurable: true, value: false });
+    render(<App />);
+
+    fireEvent.change(screen.getByPlaceholderText("Ejemplo: Finca El Capulí"), {
+      target: { value: "Finca La Pintada" }
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Empezar" }));
+
+    await screen.findByRole("heading", { name: "La finca, al día." });
+    fireEvent.click(screen.getByRole("button", { name: "Finanzas" }));
+
+    await screen.findByRole("heading", { name: "Finanzas" });
+    expect(screen.queryByRole("heading", { name: "Registrar liquidación" })).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "Liquidaciones" }));
+    fireEvent.click(screen.getByRole("button", { name: "Registrar liquidación" }));
+
+    await screen.findByRole("heading", { name: "Registrar liquidación" });
+  });
+
+  it("records a financial movement locally from its dedicated entry", async () => {
+    Object.defineProperty(navigator, "onLine", { configurable: true, value: false });
+    render(<App />);
+
+    fireEvent.change(screen.getByPlaceholderText("Ejemplo: Finca El Capulí"), {
+      target: { value: "Finca La Pintada" }
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Empezar" }));
+
+    await screen.findByRole("heading", { name: "La finca, al día." });
+    fireEvent.click(screen.getByRole("button", { name: "Finanzas" }));
+    await screen.findByRole("heading", { name: "Finanzas" });
+    fireEvent.click(screen.getByRole("button", { name: "Movimientos" }));
+    await screen.findByRole("heading", { name: "Movimientos" });
+    fireEvent.click(screen.getByRole("button", { name: "Registrar" }));
+    await screen.findByRole("heading", { name: "Registrar movimiento" });
+
+    fireEvent.change(screen.getByPlaceholderText("Ejemplo: Molido, medicamento o combustible"), { target: { value: "Concentrado" } });
+    fireEvent.change(screen.getByPlaceholderText("Ejemplo: 35.50"), { target: { value: "35.5" } });
+    fireEvent.click(screen.getByRole("button", { name: "Guardar movimiento" }));
+
+    await waitFor(async () => expect(await db.transactions.count()).toBe(1));
+    expect((await db.transactions.toArray())[0]).toMatchObject({ category: "Concentrado", amount: 35.5, direction: "expense" });
   });
 });
