@@ -5,7 +5,7 @@ import type { Animal, AnimalSex, FarmSession } from "@/domain/models";
 import { db } from "@/db/rejo-db";
 import { nowInFarmTimezone } from "@/domain/time";
 import { archiveAnimal, saveAnimal } from "@/features/animals/animals";
-import { recordHeat, recordPregnancyCheck, recordService } from "@/features/reproduction/events";
+import { recordCalving, recordDryOff, recordHeat, recordPregnancyCheck, recordService } from "@/features/reproduction/events";
 import { computeReproductiveState } from "@/features/reproduction/reproductive-state";
 import { recordHealthEvent } from "@/features/health/events";
 import { computeMilkWithholdingUntil, isMilkWithheld } from "@/features/health/milk-withholding";
@@ -127,10 +127,12 @@ const HealthPanel = ({ animal, session }: { animal: Animal; session: FarmSession
 
 const ReproductionPanel = ({ animal, session }: { animal: Animal; session: FarmSession }) => {
   const { date: today } = nowInFarmTimezone();
-  const [eventType, setEventType] = useState<"heat" | "service" | "check">("heat");
+  const [eventType, setEventType] = useState<"heat" | "service" | "check" | "calving" | "dry-off">("heat");
   const [date, setDate] = useState(today);
   const [serviceType, setServiceType] = useState<"natural" | "ai">("natural");
   const [checkResult, setCheckResult] = useState<"pregnant" | "open" | "doubtful">("pregnant");
+  const [calfName, setCalfName] = useState("");
+  const [calfSex, setCalfSex] = useState<"female" | "male">("female");
   const [message, setMessage] = useState<string>();
   const [error, setError] = useState<string>();
   const facts = useLiveQuery(
@@ -165,9 +167,16 @@ const ReproductionPanel = ({ animal, session }: { animal: Animal; session: FarmS
       } else if (eventType === "service") {
         await recordService(db, { ...input, type: serviceType });
         setMessage("El servicio quedó guardado en el celular.");
-      } else {
+      } else if (eventType === "check") {
         await recordPregnancyCheck(db, { ...input, result: checkResult });
         setMessage("La palpación quedó guardada en el celular.");
+      } else if (eventType === "calving") {
+        await recordCalving(db, { ...input, calfName, calfSex });
+        setMessage("El parto y la cría quedaron guardados en el celular.");
+        setCalfName("");
+      } else {
+        await recordDryOff(db, input);
+        setMessage("El secado quedó guardado en el celular.");
       }
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : "No se pudo guardar el evento.");
@@ -184,10 +193,12 @@ const ReproductionPanel = ({ animal, session }: { animal: Animal; session: FarmS
       {message ? <div className="mt-4"><Notice tone="success">{message}</Notice></div> : null}
       {error ? <div className="mt-4"><Notice tone="error">{error}</Notice></div> : null}
 
-      <div className="mt-5 grid grid-cols-3 gap-2">
+      <div className="mt-5 grid grid-cols-2 gap-2">
         <Button type="button" className={eventType === "heat" ? "bg-lime-700 text-white" : "bg-stone-100 text-stone-800"} onClick={() => setEventType("heat")}>Celo</Button>
         <Button type="button" className={eventType === "service" ? "bg-lime-700 text-white" : "bg-stone-100 text-stone-800"} onClick={() => setEventType("service")}>Servicio</Button>
         <Button type="button" className={eventType === "check" ? "bg-lime-700 text-white" : "bg-stone-100 text-stone-800"} onClick={() => setEventType("check")}>Palpar</Button>
+        <Button type="button" className={eventType === "calving" ? "bg-lime-700 text-white" : "bg-stone-100 text-stone-800"} onClick={() => setEventType("calving")}>Parto</Button>
+        <Button type="button" className={eventType === "dry-off" ? "bg-lime-700 text-white" : "bg-stone-100 text-stone-800"} onClick={() => setEventType("dry-off")}>Secar</Button>
       </div>
 
       <div className="mt-5">
@@ -207,6 +218,20 @@ const ReproductionPanel = ({ animal, session }: { animal: Animal; session: FarmS
           <Button type="button" className={checkResult === "pregnant" ? "bg-lime-700 text-white" : "bg-stone-100 text-stone-800"} onClick={() => setCheckResult("pregnant")}>Preñada</Button>
           <Button type="button" className={checkResult === "open" ? "bg-lime-700 text-white" : "bg-stone-100 text-stone-800"} onClick={() => setCheckResult("open")}>Vacía</Button>
           <Button type="button" className={checkResult === "doubtful" ? "bg-lime-700 text-white" : "bg-stone-100 text-stone-800"} onClick={() => setCheckResult("doubtful")}>Dudosa</Button>
+        </div>
+      ) : null}
+
+      {eventType === "calving" ? (
+        <div className="mt-5 space-y-5">
+          <div>
+            <FieldLabel>Nombre de la cría</FieldLabel>
+            <TextInput value={calfName} onChange={(event) => setCalfName(event.target.value)} placeholder="Ejemplo: Lucera" />
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <Button type="button" className={calfSex === "female" ? "bg-lime-700 text-white" : "bg-stone-100 text-stone-800"} onClick={() => setCalfSex("female")}>Hembra</Button>
+            <Button type="button" className={calfSex === "male" ? "bg-lime-700 text-white" : "bg-stone-100 text-stone-800"} onClick={() => setCalfSex("male")}>Macho</Button>
+          </div>
+          {calfSex === "female" ? <Notice tone="info">REJO programará su vacuna de brucelosis para dentro de tres meses.</Notice> : null}
         </div>
       ) : null}
 
