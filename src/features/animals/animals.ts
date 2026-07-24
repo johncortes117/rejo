@@ -14,6 +14,7 @@ export interface SaveAnimalInput {
   approximateAgeMonths?: number;
   id?: string;
   photoUrl?: string;
+  herdGroupId?: string;
 }
 
 const estimateBirthDate = (months: number, now: Date): string => {
@@ -47,6 +48,7 @@ export const saveAnimal = async (
       approximateAge === undefined ? existing?.birthDate : estimateBirthDate(approximateAge, now),
     birthDateEstimated: approximateAge !== undefined || existing?.birthDateEstimated || false,
     photoUrl: input.photoUrl ?? existing?.photoUrl,
+    herdGroupId: input.herdGroupId ?? existing?.herdGroupId,
     status: existing?.status ?? "active",
     createdAt: existing?.createdAt ?? timestamp,
     updatedAt: timestamp,

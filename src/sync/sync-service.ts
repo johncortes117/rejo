@@ -22,7 +22,8 @@ const remoteTableNames: Record<SyncQueueItem["entityTable"], string> = {
   settlements: "settlements",
   transactions: "transactions",
   assets: "assets",
-  labor: "labor"
+  labor: "labor",
+  herd_groups: "herd_groups"
 };
 
 const camelToSnake: Record<string, string> = {
@@ -102,7 +103,10 @@ const camelToSnake: Record<string, string> = {
   salvageValue: "salvage_value",
   workerName: "worker_name",
   daysWorked: "days_worked",
-  isEstimated: "is_estimated"
+  isEstimated: "is_estimated",
+  herdGroupId: "herd_group_id",
+  sortOrder: "sort_order",
+  isDefault: "is_default"
 };
 
 const snakeToCamel = Object.fromEntries(
@@ -138,7 +142,8 @@ type LocalTableKey =
   | "settlements"
   | "transactions"
   | "assets"
-  | "labor";
+  | "labor"
+  | "herdGroups";
 
 const localTableKeys: Record<SyncQueueItem["entityTable"], LocalTableKey> = {
   farms: "farms",
@@ -159,7 +164,8 @@ const localTableKeys: Record<SyncQueueItem["entityTable"], LocalTableKey> = {
   settlements: "settlements",
   transactions: "transactions",
   assets: "assets",
-  labor: "labor"
+  labor: "labor",
+  herd_groups: "herdGroups"
 };
 
 const getTable = (

@@ -47,7 +47,14 @@ export interface Animal extends RecordMeta {
   birthDateEstimated: boolean;
   photoUrl?: string;
   motherId?: EntityId;
+  herdGroupId?: EntityId;
   status: "active" | "sold" | "dead" | "culled";
+}
+
+export interface HerdGroup extends RecordMeta {
+  name: string;
+  sortOrder: number;
+  isDefault: boolean;
 }
 
 export type TankReadingMoment =
@@ -248,7 +255,8 @@ export interface SyncQueueItem {
     | "settlements"
     | "transactions"
     | "assets"
-    | "labor";
+    | "labor"
+    | "herd_groups";
   entityId: EntityId;
   operation: SyncOperation;
   payload: Record<string, unknown>;
