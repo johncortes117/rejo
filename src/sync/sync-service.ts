@@ -16,7 +16,10 @@ const remoteTableNames: Record<SyncQueueItem["entityTable"], string> = {
   calvings: "calvings",
   dry_offs: "dry_offs",
   health_events: "health_events",
-  health_plan_tasks: "health_plan_tasks"
+  health_plan_tasks: "health_plan_tasks",
+  milk_quality_tests: "milk_quality_tests",
+  price_settings: "price_settings",
+  settlements: "settlements"
 };
 
 const camelToSnake: Record<string, string> = {
@@ -59,7 +62,37 @@ const camelToSnake: Record<string, string> = {
   ignoredAt: "ignored_at",
   recurrenceDays: "recurrence_days",
   isTemplate: "is_template",
-  taskType: "task_type"
+  taskType: "task_type",
+  effectiveFrom: "effective_from",
+  supportPrice: "support_price",
+  historicalFloor: "historical_floor",
+  fatBase: "fat_base",
+  fatStep: "fat_step",
+  fatPricePerStep: "fat_price_per_step",
+  proteinBase: "protein_base",
+  proteinStep: "protein_step",
+  proteinPricePerStep: "protein_price_per_step",
+  ufcBase: "ufc_base",
+  ufcStep: "ufc_step",
+  ufcPricePerStep: "ufc_price_per_step",
+  ccsBase: "ccs_base",
+  ccsStep: "ccs_step",
+  ccsPricePerStep: "ccs_price_per_step",
+  brucellosisFreeBonus: "brucellosis_free_bonus",
+  bppBonus: "bpp_bonus",
+  sourceDocument: "source_document",
+  fatPct: "fat_pct",
+  proteinPct: "protein_pct",
+  qualityTestId: "quality_test_id",
+  periodStart: "period_start",
+  periodEnd: "period_end",
+  litersPaid: "liters_paid",
+  pricePerLiterPaid: "price_per_liter_paid",
+  totalPaid: "total_paid",
+  varianceLiters: "variance_liters",
+  varianceAmount: "variance_amount",
+  legalPriceComputed: "legal_price_computed",
+  legalVariancePerLiter: "legal_variance_per_liter"
 };
 
 const snakeToCamel = Object.fromEntries(
@@ -89,7 +122,10 @@ type LocalTableKey =
   | "calvings"
   | "dryOffs"
   | "healthEvents"
-  | "healthPlanTasks";
+  | "healthPlanTasks"
+  | "milkQualityTests"
+  | "priceSettings"
+  | "settlements";
 
 const localTableKeys: Record<SyncQueueItem["entityTable"], LocalTableKey> = {
   farms: "farms",
@@ -104,7 +140,10 @@ const localTableKeys: Record<SyncQueueItem["entityTable"], LocalTableKey> = {
   calvings: "calvings",
   dry_offs: "dryOffs",
   health_events: "healthEvents",
-  health_plan_tasks: "healthPlanTasks"
+  health_plan_tasks: "healthPlanTasks",
+  milk_quality_tests: "milkQualityTests",
+  price_settings: "priceSettings",
+  settlements: "settlements"
 };
 
 const getTable = (

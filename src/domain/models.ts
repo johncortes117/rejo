@@ -152,6 +152,52 @@ export interface HealthPlanTask extends RecordMeta {
   isTemplate: boolean;
 }
 
+export interface MilkQualityTest extends RecordMeta {
+  date: string;
+  fatPct?: number;
+  proteinPct?: number;
+  ufc?: number;
+  ccs?: number;
+  labName?: string;
+  source: "buyer_reported" | "independent";
+}
+
+export interface PriceSetting extends RecordMeta {
+  effectiveFrom: string;
+  supportPrice: number;
+  historicalFloor: number;
+  fatBase: number;
+  fatStep: number;
+  fatPricePerStep: number;
+  proteinBase: number;
+  proteinStep: number;
+  proteinPricePerStep: number;
+  ufcBase: number;
+  ufcStep: number;
+  ufcPricePerStep: number;
+  ccsBase: number;
+  ccsStep: number;
+  ccsPricePerStep: number;
+  brucellosisFreeBonus: number;
+  bppBonus: number;
+  sourceDocument?: string;
+}
+
+export interface Settlement extends RecordMeta {
+  buyerId: EntityId;
+  periodStart: string;
+  periodEnd: string;
+  litersPaid: number;
+  pricePerLiterPaid: number;
+  totalPaid: number;
+  qualityTestId?: EntityId;
+  reconciled: boolean;
+  varianceLiters?: number;
+  varianceAmount?: number;
+  legalPriceComputed?: number;
+  legalVariancePerLiter?: number;
+}
+
 export type SyncOperation = "upsert" | "soft_delete";
 
 export interface SyncQueueItem {
@@ -170,7 +216,10 @@ export interface SyncQueueItem {
     | "calvings"
     | "dry_offs"
     | "health_events"
-    | "health_plan_tasks";
+    | "health_plan_tasks"
+    | "milk_quality_tests"
+    | "price_settings"
+    | "settlements";
   entityId: EntityId;
   operation: SyncOperation;
   payload: Record<string, unknown>;

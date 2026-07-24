@@ -4,7 +4,7 @@ import type { Session } from "@supabase/supabase-js";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
-import { AlertTriangle, Beef, ChartNoAxesCombined, ClipboardPenLine, CloudUpload, Droplets, House, Milk, Settings, TrendingDown, TrendingUp } from "lucide-react";
+import { AlertTriangle, BadgeDollarSign, Beef, ChartNoAxesCombined, ClipboardPenLine, CloudUpload, Droplets, House, Milk, Settings, TrendingDown, TrendingUp } from "lucide-react";
 import { Button, Card, FieldLabel, Notice, TextInput } from "@/components/ui";
 import { provisionFarm, readFarmSession } from "@/db/bootstrap";
 import { db } from "@/db/rejo-db";
@@ -15,10 +15,11 @@ import { MilkCapturePage } from "@/features/milk/milk-capture-page";
 import { getMilkDashboard } from "@/features/milk/dashboard";
 import { getDecisionDashboard, type MilkTrendPoint } from "@/features/insights/decision-dashboard";
 import { SettingsPage } from "@/features/settings/settings-page";
+import { SettlementsPage } from "@/features/economics/settlements-page";
 import { pullFarmChanges, syncPendingOperations, type SyncStatus } from "@/sync/sync-service";
 import { isSupabaseConfigured, supabase } from "@/sync/supabase";
 
-type Page = "home" | "capture" | "animals" | "settings";
+type Page = "home" | "capture" | "animals" | "finance" | "settings";
 const farmProvisionSchema = z.object({
   farmName: z.string().trim().min(1, "Escribe el nombre de la finca para empezar."),
   ownerName: z.string()
@@ -202,11 +203,12 @@ const Navigation = ({ currentPage, onNavigate }: NavigationProps) => {
     { page: "home" as const, label: "Inicio", icon: House },
     { page: "capture" as const, label: "Anotar", icon: Droplets },
     { page: "animals" as const, label: "Mis vacas", icon: Beef },
+    { page: "finance" as const, label: "Finanzas", icon: BadgeDollarSign },
     { page: "settings" as const, label: "Ajustes", icon: Settings }
   ];
 
   return (
-    <nav className="sticky bottom-0 grid grid-cols-4 gap-1 border-t border-stone-200/80 bg-white/95 p-2 pb-[max(0.5rem,env(safe-area-inset-bottom))] backdrop-blur">
+    <nav className="sticky bottom-0 grid grid-cols-5 gap-1 border-t border-stone-200/80 bg-white/95 p-2 pb-[max(0.5rem,env(safe-area-inset-bottom))] backdrop-blur">
       {links.map((link) => (
         <button
           className={
@@ -272,6 +274,7 @@ const AppShell = ({ session }: { session: FarmSession }) => {
         {page === "home" ? <HomePage session={session} onCapture={() => setPage("capture")} /> : null}
         {page === "capture" ? <MilkCapturePage session={session} onSaved={() => setPage("home")} /> : null}
         {page === "animals" ? <AnimalsPage session={session} /> : null}
+        {page === "finance" ? <SettlementsPage session={session} /> : null}
         {page === "settings" ? <SettingsPage session={session} /> : null}
       </main>
 
