@@ -9,6 +9,7 @@ import { recordCalving, recordDryOff, recordHeat, recordPregnancyCheck, recordSe
 import { computeReproductiveState } from "@/features/reproduction/reproductive-state";
 import { recordHealthEvent } from "@/features/health/events";
 import { computeMilkWithholdingUntil, isMilkWithheld } from "@/features/health/milk-withholding";
+import { updateHealthPlanTask } from "@/features/health/plan-tasks";
 
 interface AnimalsPageProps {
   session: FarmSession;
@@ -57,6 +58,11 @@ const HealthPanel = ({ animal, session }: { animal: Animal; session: FarmSession
     [animal.id],
     []
   );
+  const tasks = useLiveQuery(
+    () => db.healthPlanTasks.filter((item) => item.animalId === animal.id && !item.deletedAt && !item.completedAt && !item.ignoredAt).sortBy("dueDate"),
+    [animal.id],
+    []
+  );
   const withholdingUntil = computeMilkWithholdingUntil(events);
   const milkWithheld = isMilkWithheld(events, new Date());
 
@@ -85,6 +91,17 @@ const HealthPanel = ({ animal, session }: { animal: Animal; session: FarmSession
       setWithdrawalHours("");
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : "No se pudo guardar el evento sanitario.");
+    }
+  };
+
+  const updateTask = async (task: typeof tasks[number], action: "complete" | "postpone" | "ignore") => {
+    setMessage(undefined);
+    setError(undefined);
+    try {
+      await updateHealthPlanTask(db, task, action);
+      setMessage(action === "complete" ? "La tarea quedó completada." : action === "postpone" ? "La tarea se pospuso siete días." : "La tarea quedó ignorada.");
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : "No se pudo actualizar la tarea.");
     }
   };
 
@@ -121,6 +138,25 @@ const HealthPanel = ({ animal, session }: { animal: Animal; session: FarmSession
       <Button type="button" className="mt-6 w-full bg-red-800 text-white hover:bg-red-900" onClick={() => void save()}>
         Guardar evento sanitario
       </Button>
+
+      {tasks.length > 0 ? (
+        <div className="mt-6 border-t border-stone-200 pt-5">
+          <h4 className="text-xl font-black text-stone-950">Tareas pendientes</h4>
+          {tasks.map((task) => (
+            <div className="mt-4 rounded-lg bg-amber-50 p-4" key={task.id}>
+              <p className="text-lg font-bold text-stone-950">
+                {task.taskType === "brucellosis_vaccination" ? "Vacuna de brucelosis" : task.taskType === "deworming" ? "Curada" : "Prueba anual de brucelosis"}
+              </p>
+              <p className="text-lg text-stone-700">Para: {task.dueDate}</p>
+              <div className="mt-3 grid grid-cols-3 gap-2">
+                <Button type="button" className="bg-lime-700 text-white" onClick={() => void updateTask(task, "complete")}>Hecha</Button>
+                <Button type="button" className="bg-stone-100 text-stone-800" onClick={() => void updateTask(task, "postpone")}>+7 días</Button>
+                <Button type="button" className="bg-red-50 text-red-900" onClick={() => void updateTask(task, "ignore")}>Ignorar</Button>
+              </div>
+            </div>
+          ))}
+        </div>
+      ) : null}
     </div>
   );
 };
