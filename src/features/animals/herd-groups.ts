@@ -24,3 +24,24 @@ export const createHerdGroup = async (database: RejoDb, farmId: string, userId: 
   await database.transaction("rw", database.herdGroups, database.syncQueue, async () => { await database.herdGroups.put(group); await database.syncQueue.put(queueUpsert(farmId, "herd_groups", group.id, group as unknown as Record<string, unknown>, timestamp)); });
   return group;
 };
+
+export const renameHerdGroup = async (database: RejoDb, group: HerdGroup, name: string, now = new Date()): Promise<HerdGroup> => {
+  const trimmedName = name.trim();
+  if (!trimmedName) throw new Error("Escribe el nombre del grupo.");
+  const groups = await database.herdGroups.filter((item) => item.farmId === group.farmId && !item.deletedAt).toArray();
+  if (groups.some((item) => item.id !== group.id && item.name.toLocaleLowerCase("es-EC") === trimmedName.toLocaleLowerCase("es-EC"))) throw new Error("Ya existe un grupo con ese nombre.");
+  const next = { ...group, name: trimmedName, updatedAt: now.toISOString() };
+  await database.transaction("rw", database.herdGroups, database.syncQueue, async () => { await database.herdGroups.put(next); await database.syncQueue.put(queueUpsert(group.farmId, "herd_groups", next.id, next as unknown as Record<string, unknown>, next.updatedAt)); });
+  return next;
+};
+
+export const reorderHerdGroup = async (database: RejoDb, groups: HerdGroup[], groupId: string, direction: -1 | 1, now = new Date()): Promise<void> => {
+  const index = groups.findIndex((group) => group.id === groupId);
+  const targetIndex = index + direction;
+  if (index < 0 || targetIndex < 0 || targetIndex >= groups.length) return;
+  const timestamp = now.toISOString();
+  const next = [...groups];
+  [next[index], next[targetIndex]] = [next[targetIndex], next[index]];
+  const updated = next.map((group, sortOrder) => ({ ...group, sortOrder, updatedAt: timestamp }));
+  await database.transaction("rw", database.herdGroups, database.syncQueue, async () => { await database.herdGroups.bulkPut(updated); await database.syncQueue.bulkPut(updated.map((group) => queueUpsert(group.farmId, "herd_groups", group.id, group as unknown as Record<string, unknown>, timestamp))); });
+};
