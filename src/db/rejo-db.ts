@@ -2,8 +2,13 @@ import Dexie, { type EntityTable } from "dexie";
 import type {
   Animal,
   Buyer,
+  Calving,
+  DryOff,
   Farm,
+  Heat,
   MilkUsage,
+  PregnancyCheck,
+  Service,
   SyncQueueItem,
   TankCalibration,
   TankReading
@@ -16,6 +21,11 @@ export class RejoDb extends Dexie {
   animals!: EntityTable<Animal, "id">;
   tankReadings!: EntityTable<TankReading, "id">;
   milkUsages!: EntityTable<MilkUsage, "id">;
+  heats!: EntityTable<Heat, "id">;
+  services!: EntityTable<Service, "id">;
+  pregnancyChecks!: EntityTable<PregnancyCheck, "id">;
+  calvings!: EntityTable<Calving, "id">;
+  dryOffs!: EntityTable<DryOff, "id">;
   syncQueue!: EntityTable<SyncQueueItem, "id">;
 
   constructor(name = "rejo") {
@@ -28,6 +38,21 @@ export class RejoDb extends Dexie {
       animals: "id, farmId, [farmId+name], updatedAt, deletedAt",
       tankReadings: "id, farmId, [farmId+date], [farmId+date+moment], updatedAt, deletedAt",
       milkUsages: "id, farmId, [farmId+date], updatedAt, deletedAt",
+      syncQueue: "id, farmId, [farmId+completedAt], createdAt"
+    });
+
+    this.version(2).stores({
+      farms: "id, farmId, updatedAt, deletedAt",
+      buyers: "id, farmId, updatedAt, deletedAt",
+      tankCalibrations: "id, farmId, [farmId+mark], updatedAt, deletedAt",
+      animals: "id, farmId, [farmId+name], updatedAt, deletedAt",
+      tankReadings: "id, farmId, [farmId+date], [farmId+date+moment], updatedAt, deletedAt",
+      milkUsages: "id, farmId, [farmId+date], updatedAt, deletedAt",
+      heats: "id, farmId, [farmId+animalId], [farmId+date], updatedAt, deletedAt",
+      services: "id, farmId, [farmId+animalId], [farmId+date], updatedAt, deletedAt",
+      pregnancyChecks: "id, farmId, [farmId+animalId], [farmId+date], updatedAt, deletedAt",
+      calvings: "id, farmId, [farmId+animalId], [farmId+date], updatedAt, deletedAt",
+      dryOffs: "id, farmId, [farmId+animalId], [farmId+date], updatedAt, deletedAt",
       syncQueue: "id, farmId, [farmId+completedAt], createdAt"
     });
   }

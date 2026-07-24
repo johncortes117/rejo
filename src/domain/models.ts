@@ -81,6 +81,55 @@ export interface MilkUsage extends RecordMeta {
   notes?: string;
 }
 
+export interface Heat extends RecordMeta {
+  animalId: EntityId;
+  date: string;
+  detectedBy?: string;
+  detectedWhere?: "milking" | "paddock" | "corral";
+  signs?: string;
+  served: boolean;
+}
+
+export interface Service extends RecordMeta {
+  animalId: EntityId;
+  date: string;
+  type: "natural" | "ai";
+  bullId?: EntityId;
+  strawCode?: string;
+  strawBullName?: string;
+  technician?: string;
+  cost?: number;
+  serviceNumber: number;
+}
+
+export interface PregnancyCheck extends RecordMeta {
+  animalId: EntityId;
+  date: string;
+  method: "palpation" | "ultrasound" | "blood";
+  result: "pregnant" | "open" | "doubtful";
+  estimatedDays?: number;
+  technician?: string;
+  cost?: number;
+}
+
+export interface Calving extends RecordMeta {
+  animalId: EntityId;
+  date: string;
+  type: "normal" | "assisted" | "cesarean";
+  outcome: "live" | "stillborn" | "abortion" | "twins";
+  calfIds: EntityId[];
+  complications?: string;
+  notes?: string;
+}
+
+export interface DryOff extends RecordMeta {
+  animalId: EntityId;
+  date: string;
+  plannedDate?: string;
+  treatmentApplied?: string;
+  expectedCalvingDate?: string;
+}
+
 export type SyncOperation = "upsert" | "soft_delete";
 
 export interface SyncQueueItem {
@@ -92,7 +141,12 @@ export interface SyncQueueItem {
     | "tank_calibrations"
     | "animals"
     | "tank_readings"
-    | "milk_usages";
+    | "milk_usages"
+    | "heats"
+    | "services"
+    | "pregnancy_checks"
+    | "calvings"
+    | "dry_offs";
   entityId: EntityId;
   operation: SyncOperation;
   payload: Record<string, unknown>;
