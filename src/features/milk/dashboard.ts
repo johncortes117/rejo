@@ -5,7 +5,7 @@ import type { RejoDb } from "@/db/rejo-db";
 
 const pickupReadingForDay = (readings: TankReading[]): TankReading | undefined =>
   readings
-    .filter((reading) => !reading.deletedAt && reading.moment === "at_pickup")
+    .filter((reading) => !reading.deletedAt && reading.moment === "at_pickup" && reading.readBy === "farm")
     .sort((left, right) => right.updatedAt.localeCompare(left.updatedAt))[0];
 
 export interface MilkDashboard {

@@ -7,9 +7,11 @@ import type { FarmSession } from "@/domain/models";
 import { db } from "@/db/rejo-db";
 import {
   captureDailyTankMeasurement,
-  DuplicateTankReadingError
+  DuplicateTankReadingError,
+  recordBuyerTankReading
 } from "@/features/milk/daily-capture";
 import { getMilkDashboard } from "@/features/milk/dashboard";
+import { computeMilkBalance } from "@/features/milk/balance";
 
 interface MilkCapturePageProps {
   session: FarmSession;
@@ -22,6 +24,7 @@ export const MilkCapturePage = ({ session, onSaved }: MilkCapturePageProps) => {
   const [mode, setMode] = useState<"liters" | "mark">("liters");
   const [value, setValue] = useState("");
   const [calvesLiters, setCalvesLiters] = useState("");
+  const [buyerLiters, setBuyerLiters] = useState("");
   const [message, setMessage] = useState<string>();
   const [error, setError] = useState<string>();
   const [isSaving, setIsSaving] = useState(false);
@@ -37,12 +40,20 @@ export const MilkCapturePage = ({ session, onSaved }: MilkCapturePageProps) => {
     () => getMilkDashboard(db, session.farmId, date),
     [session.farmId, date]
   );
+  const dateReadings = useLiveQuery(
+    () => db.tankReadings.filter((reading) => reading.farmId === session.farmId && reading.date === date && !reading.deletedAt).toArray(),
+    [session.farmId, date],
+    []
+  );
   const numericValue = Number(value);
   const interpolation =
     mode === "mark" && Number.isFinite(numericValue)
       ? interpolateTankLiters(numericValue, calibrationPoints)
       : null;
   const liters = mode === "liters" ? numericValue : interpolation?.liters;
+  const savedFarmLiters = dateReadings.find((reading) => reading.readBy === "farm" && reading.moment === "at_pickup")?.liters;
+  const savedBuyerLiters = dateReadings.find((reading) => reading.readBy === "buyer" && reading.moment === "at_pickup")?.liters;
+  const balance = computeMilkBalance(savedFarmLiters, savedBuyerLiters);
 
   const save = async (duplicateStrategy: "reject" | "replace" = "reject") => {
     setError(undefined);
@@ -74,9 +85,13 @@ export const MilkCapturePage = ({ session, onSaved }: MilkCapturePageProps) => {
         milkForCalvesLiters: calvesLiters ? Number(calvesLiters) : undefined,
         duplicateStrategy
       });
+      if (buyerLiters) {
+        await recordBuyerTankReading(db, { farmId: session.farmId, userId: session.userId, date, liters: Number(buyerLiters) });
+      }
       setMessage("Guardado en el celular.");
       setValue("");
       setCalvesLiters("");
+      setBuyerLiters("");
       onSaved();
     } catch (caught) {
       if (caught instanceof DuplicateTankReadingError) {
@@ -144,6 +159,18 @@ export const MilkCapturePage = ({ session, onSaved }: MilkCapturePageProps) => {
             placeholder={mode === "liters" ? "Ejemplo: 205" : "Ejemplo: 34.5"}
           />
         </div>
+
+        <div className="mt-5">
+          <FieldLabel>Litros que declaró el tanquero (opcional)</FieldLabel>
+          <TextInput inputMode="decimal" min="0" step="0.1" type="number" value={buyerLiters} onChange={(event) => setBuyerLiters(event.target.value)} placeholder="Ejemplo: 203" />
+        </div>
+
+        {balance.varianceLiters !== undefined ? (
+          <Notice tone={balance.needsReview ? "warning" : "success"}>
+            Diferencia con el tanquero: {balance.varianceLiters.toFixed(1)} L ({balance.variancePercent?.toFixed(1)}%).
+            {balance.needsReview ? " Conviene revisar ambas medidas." : " Dentro del margen de 3%."}
+          </Notice>
+        ) : null}
 
         {mode === "mark" && interpolation ? (
           <Notice tone={interpolation.extrapolated ? "warning" : "success"}>

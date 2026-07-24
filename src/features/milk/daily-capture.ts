@@ -44,7 +44,8 @@ const dailyCaptureSchema = z.object({
 const activePickupReadingsForDate = (
   database: RejoDb,
   farmId: string,
-  date: string
+  date: string,
+  readBy: TankReading["readBy"]
 ): Promise<TankReading[]> =>
   database.tankReadings
     .filter(
@@ -52,6 +53,7 @@ const activePickupReadingsForDate = (
         reading.farmId === farmId &&
         reading.date === date &&
         reading.moment === "at_pickup" &&
+        reading.readBy === readBy &&
         !reading.deletedAt
     )
     .toArray();
@@ -73,7 +75,7 @@ export const captureDailyTankMeasurement = async (
   const instant = input.now ?? new Date();
   const timestamp = instant.toISOString();
   const localTime = nowInFarmTimezone(instant).time;
-  const existing = await activePickupReadingsForDate(database, input.farmId, input.date);
+  const existing = await activePickupReadingsForDate(database, input.farmId, input.date, "farm");
 
   if (existing.length > 0 && input.duplicateStrategy !== "replace") {
     throw new DuplicateTankReadingError();
@@ -141,6 +143,43 @@ export const captureDailyTankMeasurement = async (
   );
 
   return { reading, milkUsage };
+};
+
+export const recordBuyerTankReading = async (
+  database: RejoDb,
+  input: { farmId: string; userId: string; date: string; liters: number },
+  now = new Date()
+): Promise<TankReading> => {
+  if (!Number.isFinite(input.liters) || input.liters < 0) {
+    throw new Error("Ingresa una cantidad válida declarada por el tanquero.");
+  }
+
+  const timestamp = now.toISOString();
+  const existing = await activePickupReadingsForDate(database, input.farmId, input.date, "buyer");
+  const reading: TankReading = {
+    id: createUuidV7(now.getTime()),
+    farmId: input.farmId,
+    date: input.date,
+    time: nowInFarmTimezone(now).time,
+    moment: "at_pickup",
+    liters: Math.round(input.liters * 10) / 10,
+    readBy: "buyer",
+    createdAt: timestamp,
+    updatedAt: timestamp,
+    createdBy: input.userId
+  };
+
+  await database.transaction("rw", database.tankReadings, database.syncQueue, async () => {
+    const replaced = existing.map((item) => ({ ...item, deletedAt: timestamp, updatedAt: timestamp }));
+    if (replaced.length > 0) {
+      await database.tankReadings.bulkPut(replaced);
+      await database.syncQueue.bulkPut(replaced.map((item) => queueSoftDelete(input.farmId, "tank_readings", item.id, toPayload(item), timestamp)));
+    }
+    await database.tankReadings.put(reading);
+    await database.syncQueue.put(queueUpsert(input.farmId, "tank_readings", reading.id, toPayload(reading), timestamp));
+  });
+
+  return reading;
 };
 
 export const softDeleteTankReading = async (
