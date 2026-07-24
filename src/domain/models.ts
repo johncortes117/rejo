@@ -130,6 +130,16 @@ export interface DryOff extends RecordMeta {
   expectedCalvingDate?: string;
 }
 
+export interface HealthEvent extends RecordMeta {
+  animalId?: EntityId;
+  date: string;
+  type: "vaccination" | "deworming" | "vitamin" | "mastitis" | "lameness" | "metabolic" | "injury" | "reproductive" | "brucellosis_test" | "other";
+  productName?: string;
+  activeIngredient?: string;
+  milkWithdrawalHours?: number;
+  notes?: string;
+}
+
 export type SyncOperation = "upsert" | "soft_delete";
 
 export interface SyncQueueItem {
@@ -146,7 +156,8 @@ export interface SyncQueueItem {
     | "services"
     | "pregnancy_checks"
     | "calvings"
-    | "dry_offs";
+    | "dry_offs"
+    | "health_events";
   entityId: EntityId;
   operation: SyncOperation;
   payload: Record<string, unknown>;
