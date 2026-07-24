@@ -1,5 +1,11 @@
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+
+vi.mock("@/sync/supabase", () => ({
+  isSupabaseConfigured: false,
+  supabase: null
+}));
+
 import { App } from "@/app/app";
 import { db } from "@/db/rejo-db";
 

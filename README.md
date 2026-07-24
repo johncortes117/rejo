@@ -21,7 +21,7 @@ The app records the daily tank measurement locally before any network operation.
 4. Run npm install.
 5. Run npm run dev.
 
-Without Supabase environment variables, the application runs in local provisioning mode for offline development. With Supabase configured, it uses email magic-link authentication and the database migration in supabase/migrations.
+Without Supabase environment variables, the application runs in local provisioning mode for offline development. With Supabase configured, it uses Supabase email-and-password authentication and the database migration in supabase/migrations. For a no-email pilot login flow, disable Confirm Email in the Supabase Email provider before creating accounts.
 
 ## Quality checks
 

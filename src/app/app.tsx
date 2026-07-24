@@ -250,41 +250,67 @@ const LocalApp = () => {
 
 const SupabaseSignInPage = () => {
   const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [mode, setMode] = useState<"sign-in" | "sign-up">("sign-in");
   const [message, setMessage] = useState<string>();
   const [error, setError] = useState<string>();
-  const [isSending, setIsSending] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const signIn = async () => {
-    if (!supabase || !email.trim()) {
-      setError("Escribe tu correo para recibir el enlace.");
+  const submit = async () => {
+    if (!supabase || !email.trim() || !password) {
+      setError("Escribe tu correo y contrase\u00f1a.");
       return;
     }
 
-    setIsSending(true);
-    setError(undefined);
+    if (password.length < 8) {
+      setError("La contrase\u00f1a debe tener al menos 8 caracteres.");
+      return;
+    }
 
-    const { error: signInError } = await supabase.auth.signInWithOtp({
+    setIsSubmitting(true);
+    setError(undefined);
+    setMessage(undefined);
+
+    if (mode === "sign-up") {
+      const { data, error: signUpError } = await supabase.auth.signUp({
+        email: email.trim(),
+        password
+      });
+
+      setIsSubmitting(false);
+
+      if (signUpError) {
+        setError(signUpError.message);
+        return;
+      }
+
+      if (!data.session) {
+        setMessage("Cuenta creada. Activa la confirmaci\u00f3n autom\u00e1tica de correo en Supabase para entrar sin recibir un enlace.");
+      }
+      return;
+    }
+
+    const { error: signInError } = await supabase.auth.signInWithPassword({
       email: email.trim(),
-      options: { emailRedirectTo: window.location.origin }
+      password
     });
 
-    setIsSending(false);
+    setIsSubmitting(false);
 
     if (signInError) {
       setError(signInError.message);
-      return;
     }
-
-    setMessage("Revisa tu correo y abre el enlace en este mismo teléfono.");
   };
 
   return (
     <main className="mx-auto flex min-h-screen max-w-xl items-center p-5">
       <Card>
         <p className="text-lg font-bold text-lime-800">REJO</p>
-        <h1 className="mt-2 text-4xl font-black text-stone-950">Entrar a la finca</h1>
+        <h1 className="mt-2 text-4xl font-black text-stone-950">
+          {mode === "sign-in" ? "Entrar a la finca" : "Crear acceso a la finca"}
+        </h1>
         <p className="mt-3 text-lg text-stone-700">
-          Te enviaremos un enlace seguro. Solo se necesita señal para este primer paso.
+          Solo necesitas conexi\u00f3n para crear o abrir tu acceso por primera vez en este tel\u00e9fono.
         </p>
 
         {message ? <div className="mt-5"><Notice tone="success">{message}</Notice></div> : null}
@@ -302,14 +328,38 @@ const SupabaseSignInPage = () => {
           />
         </div>
 
+        <div className="mt-5">
+          <FieldLabel>Contrase\u00f1a</FieldLabel>
+          <TextInput
+            autoComplete={mode === "sign-in" ? "current-password" : "new-password"}
+            minLength={8}
+            type="password"
+            value={password}
+            onChange={(event) => setPassword(event.target.value)}
+            placeholder="M\u00ednimo 8 caracteres"
+          />
+        </div>
+
         <Button
           type="button"
           className="mt-7 w-full bg-lime-700 text-white hover:bg-lime-800"
-          disabled={isSending}
-          onClick={() => void signIn()}
+          disabled={isSubmitting}
+          onClick={() => void submit()}
         >
-          {isSending ? "Enviando…" : "Enviar enlace"}
+          {isSubmitting ? "Guardando…" : mode === "sign-in" ? "Entrar" : "Crear cuenta"}
         </Button>
+
+        <button
+          className="mt-5 w-full text-lg font-bold text-lime-800 underline"
+          type="button"
+          onClick={() => {
+            setMode((current) => current === "sign-in" ? "sign-up" : "sign-in");
+            setError(undefined);
+            setMessage(undefined);
+          }}
+        >
+          {mode === "sign-in" ? "Crear mi acceso" : "Ya tengo acceso"}
+        </button>
       </Card>
     </main>
   );
