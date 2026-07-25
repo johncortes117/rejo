@@ -8,6 +8,7 @@ vi.mock("@/sync/supabase", () => ({
 
 import { App } from "@/app/app";
 import { db } from "@/db/rejo-db";
+import { nowInFarmTimezone } from "@/domain/time";
 
 const clearDatabase = async () => {
   await Promise.all([
@@ -209,6 +210,44 @@ describe("Phase 0 daily flow", () => {
     fireEvent.click(screen.getByRole("button", { name: /Sanidad/ }));
 
     await screen.findByRole("heading", { name: "Sanidad" });
+  });
+
+  it("puts milk withdrawal before health plan tasks and resolves a task in a focused view", async () => {
+    Object.defineProperty(navigator, "onLine", { configurable: true, value: false });
+    render(<App />);
+
+    fireEvent.change(screen.getByPlaceholderText("Ejemplo: Finca El Capulí"), {
+      target: { value: "Finca La Pintada" }
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Empezar" }));
+
+    await screen.findByRole("heading", { name: "La finca, al día." });
+    fireEvent.click(screen.getByRole("button", { name: "Rejo" }));
+    await screen.findByRole("heading", { name: "El rejo" });
+    fireEvent.click(screen.getByRole("button", { name: /Sanidad/ }));
+    await screen.findByRole("heading", { name: "Sanidad" });
+
+    const [farm] = await db.farms.toArray();
+    const timestamp = "2026-07-24T12:00:00.000Z";
+    const today = nowInFarmTimezone().date;
+    const [year, month, day] = today.split("-").map(Number);
+    const nextWeek = new Date(Date.UTC(year, month - 1, day + 7)).toISOString().slice(0, 10);
+    await db.animals.put({ id: "health-luna", farmId: farm.id, name: "Luna", sex: "female", birthDateEstimated: true, status: "active", createdAt: timestamp, updatedAt: timestamp, createdBy: farm.createdBy });
+    await db.healthEvents.put({ id: "health-luna-treatment", farmId: farm.id, animalId: "health-luna", date: today, type: "mastitis", milkWithdrawalHours: 72, createdAt: timestamp, updatedAt: timestamp, createdBy: farm.createdBy });
+    await db.healthPlanTasks.put({ id: "health-curada", farmId: farm.id, category: "cow", taskType: "deworming", dueDate: today, isTemplate: false, createdAt: timestamp, updatedAt: timestamp, createdBy: farm.createdBy });
+
+    await screen.findByText("1 vaca con leche en retiro");
+    expect(screen.queryByText("Revisa primero la leche en retiro y las tareas pendientes; el tratamiento de cada vaca sigue en su ficha.")).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Abrir ficha de Luna: no entregar leche" })).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "Gestionar Curada" }));
+    await screen.findByRole("dialog", { name: "Gestionar Curada" });
+    expect(screen.getByRole("heading", { name: "¿Qué pasó con esta tarea?" })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Posponer 7 días" }));
+
+    await waitFor(async () => expect((await db.healthPlanTasks.get("health-curada"))?.dueDate).toBe(nextWeek));
+    await screen.findByText("La tarea se pospuso siete días.");
+    expect(screen.queryByRole("dialog", { name: "Gestionar Curada" })).not.toBeInTheDocument();
   });
 
   it("opens milk control as a focused capture journey", async () => {
