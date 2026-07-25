@@ -1,10 +1,11 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useLiveQuery } from "dexie-react-hooks";
-import { ArrowDown, ArrowLeft, ArrowUp, ChevronRight, CirclePlus, ClipboardPenLine, Plus, Search, SlidersHorizontal, X } from "lucide-react";
+import { ArrowDown, ArrowLeft, ArrowUp, ChevronRight, CirclePlus, ClipboardPenLine, LoaderCircle, Plus, Search, SlidersHorizontal, X } from "lucide-react";
 import { Button, Card, FieldLabel, Notice, TextInput } from "@/components/ui";
 import { db } from "@/db/rejo-db";
 import type { Animal, AnimalSex, FarmSession, HerdGroup } from "@/domain/models";
 import { archiveAnimal, saveAnimal } from "@/features/animals/animals";
+import { AnimalAvatar, AnimalPhotoPicker } from "@/features/animals/animal-photo";
 import { AnimalDetail, AnimalEditor } from "@/features/animals/animals-page";
 import { createHerdGroup, ensureDefaultHerdGroups, renameHerdGroup, reorderHerdGroup } from "@/features/animals/herd-groups";
 
@@ -17,6 +18,7 @@ interface NewAnimalForm {
   name: string;
   sex: "" | AnimalSex;
   approximateAgeMonths: string;
+  photoUrl?: string;
   herdGroupId?: string;
 }
 
@@ -126,6 +128,9 @@ export const NewAnimalWizard = ({ groups, session, onClose, onSaved }: { groups:
   const [step, setStep] = useState<0 | 1 | 2>(0);
   const [form, setForm] = useState<NewAnimalForm>(emptyForm);
   const [error, setError] = useState<string>();
+  const [isPreparingPhoto, setIsPreparingPhoto] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
+  const savingRef = useRef(false);
   const selectedGroup = groups.find((group) => group.id === form.herdGroupId);
   const update = (next: Partial<NewAnimalForm>) => setForm((current) => ({ ...current, ...next }));
   const advance = () => {
@@ -135,25 +140,33 @@ export const NewAnimalWizard = ({ groups, session, onClose, onSaved }: { groups:
     setStep((current) => current === 0 ? 1 : 2);
   };
   const save = async () => {
+    if (savingRef.current || isPreparingPhoto) return;
+    savingRef.current = true;
+    setIsSaving(true);
     setError(undefined);
+    let didSave = false;
     try {
-      await saveAnimal(db, { farmId: session.farmId, userId: session.userId, name: form.name, sex: form.sex || undefined, approximateAgeMonths: form.approximateAgeMonths ? Number(form.approximateAgeMonths) : undefined, herdGroupId: form.herdGroupId });
-      onSaved(`${form.name.trim()} quedó agregada a ${selectedGroup?.name ?? "su grupo"}.`);
+      await saveAnimal(db, { farmId: session.farmId, userId: session.userId, name: form.name, sex: form.sex || undefined, approximateAgeMonths: form.approximateAgeMonths ? Number(form.approximateAgeMonths) : undefined, photoUrl: form.photoUrl, herdGroupId: form.herdGroupId });
+      didSave = true;
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : "No se pudo guardar el animal.");
+    } finally {
+      savingRef.current = false;
+      setIsSaving(false);
     }
+    if (didSave) onSaved(`${form.name.trim()} quedó agregada a ${selectedGroup?.name ?? "su grupo"}.`);
   };
   const heading = step === 0 ? "¿A qué grupo se integra?" : step === 1 ? "¿Cómo la conoces?" : "Revisa antes de guardar";
 
   return <div className={screenShell} role="dialog" aria-modal="true" aria-label="Agregar animal">
     <header className="sticky top-0 z-10 flex items-center gap-3 border-b border-stone-200 bg-white/95 px-4 py-3 backdrop-blur sm:px-6">
-      <Button type="button" className="min-h-11 shrink-0 bg-stone-100 px-3 text-stone-800" onClick={onClose} aria-label="Cerrar agregar animal"><X size={19} aria-hidden="true" /></Button>
+      <Button type="button" disabled={isSaving || isPreparingPhoto} className="min-h-11 shrink-0 bg-stone-100 px-3 text-stone-800" onClick={onClose} aria-label="Cerrar agregar animal"><X size={19} aria-hidden="true" /></Button>
       <div><p className="text-xs font-bold uppercase tracking-[0.16em] text-lime-800">Agregar animal · paso {step + 1} de 3</p><h1 className="text-xl font-black text-stone-950 sm:text-2xl">{heading}</h1></div>
     </header>
     <div className="mx-auto max-w-2xl p-4 pb-10 pt-6 sm:p-6">
       {error ? <div className="mb-5"><Notice tone="error">{error}</Notice></div> : null}
       <Card>
-        {step === 0 ? <><p className="text-base text-stone-600">Primero organiza dónde verás al animal. Podrás cambiarlo luego desde la ficha.</p><div className="mt-5 grid gap-3 sm:grid-cols-2">{groups.map((group) => <button key={group.id} type="button" aria-pressed={form.herdGroupId === group.id} className={`min-h-24 rounded-2xl border p-4 text-left transition ${form.herdGroupId === group.id ? "border-lime-700 bg-lime-100 text-lime-950 ring-2 ring-lime-300" : "border-stone-200 bg-stone-50 text-stone-950"}`} onClick={() => update({ herdGroupId: group.id })}><span className="block text-lg font-black">{group.name}</span><span className="mt-1 block text-sm leading-snug text-stone-600">{groupDescriptions[group.name] ?? "Grupo personalizado del rejo."}</span></button>)}</div><Button type="button" className="mt-6 w-full bg-lime-700 text-white" onClick={advance}><ChevronRight size={20} aria-hidden="true" />Continuar</Button></> : step === 1 ? <><div><FieldLabel>Nombre o apodo</FieldLabel><TextInput autoFocus value={form.name} onChange={(event) => update({ name: event.target.value })} placeholder="Ejemplo: Pintada" /></div><div className="mt-6"><FieldLabel>Sexo <span className="normal-case tracking-normal">(opcional)</span></FieldLabel><div className="grid grid-cols-2 gap-3"><Button type="button" aria-pressed={form.sex === "female"} className={form.sex === "female" ? "bg-lime-700 text-white" : "bg-stone-100 text-stone-800"} onClick={() => update({ sex: "female" })}>Hembra</Button><Button type="button" aria-pressed={form.sex === "male"} className={form.sex === "male" ? "bg-lime-700 text-white" : "bg-stone-100 text-stone-800"} onClick={() => update({ sex: "male" })}>Macho</Button></div></div><div className="mt-6 flex gap-3"><Button type="button" className="bg-stone-100 text-stone-800" onClick={() => setStep(0)}>Atrás</Button><Button type="button" className="flex-1 bg-lime-700 text-white" onClick={advance}>Siguiente<ChevronRight size={20} aria-hidden="true" /></Button></div></> : <><p className="text-base text-stone-600">La edad es opcional. Lo demás ya está listo.</p><div className="mt-6"><FieldLabel>Edad aproximada en meses <span className="normal-case tracking-normal">(opcional)</span></FieldLabel><TextInput autoFocus inputMode="numeric" min="0" type="number" value={form.approximateAgeMonths} onChange={(event) => update({ approximateAgeMonths: event.target.value })} placeholder="Ejemplo: 36" /></div><div className="mt-6 rounded-2xl bg-stone-100 p-4"><p className="text-sm font-bold uppercase tracking-wide text-stone-500">Se agregará</p><p className="mt-1 text-2xl font-black text-stone-950">{form.name}</p><p className="mt-1 text-base text-stone-600">{selectedGroup?.name} · {form.sex === "female" ? "Hembra" : form.sex === "male" ? "Macho" : "Sexo pendiente"}</p><button type="button" className="mt-3 text-base font-bold text-lime-800 underline" onClick={() => setStep(0)}>Cambiar grupo</button></div><div className="mt-6 flex flex-col-reverse gap-3 sm:flex-row"><Button type="button" className="bg-stone-100 text-stone-800" onClick={() => setStep(1)}>Atrás</Button><Button type="button" className="flex-1 bg-lime-700 text-white" onClick={() => void save()}><CirclePlus size={20} aria-hidden="true" />Agregar animal</Button></div></>}
+        {step === 0 ? <><p className="text-base text-stone-600">Primero organiza dónde verás al animal. Podrás cambiarlo luego desde la ficha.</p><div className="mt-5 grid gap-3 sm:grid-cols-2">{groups.map((group) => <button key={group.id} type="button" aria-pressed={form.herdGroupId === group.id} className={`min-h-24 rounded-2xl border p-4 text-left transition ${form.herdGroupId === group.id ? "border-lime-700 bg-lime-100 text-lime-950 ring-2 ring-lime-300" : "border-stone-200 bg-stone-50 text-stone-950"}`} onClick={() => update({ herdGroupId: group.id })}><span className="block text-lg font-black">{group.name}</span><span className="mt-1 block text-sm leading-snug text-stone-600">{groupDescriptions[group.name] ?? "Grupo personalizado del rejo."}</span></button>)}</div><Button type="button" className="mt-6 w-full bg-lime-700 text-white" onClick={advance}><ChevronRight size={20} aria-hidden="true" />Continuar</Button></> : step === 1 ? <><div><FieldLabel>Nombre o apodo</FieldLabel><TextInput autoFocus value={form.name} onChange={(event) => update({ name: event.target.value })} placeholder="Ejemplo: Pintada" /></div><div className="mt-6"><FieldLabel>Sexo <span className="normal-case tracking-normal">(opcional)</span></FieldLabel><div className="grid grid-cols-2 gap-3"><Button type="button" aria-pressed={form.sex === "female"} className={form.sex === "female" ? "bg-lime-700 text-white" : "bg-stone-100 text-stone-800"} onClick={() => update({ sex: "female" })}>Hembra</Button><Button type="button" aria-pressed={form.sex === "male"} className={form.sex === "male" ? "bg-lime-700 text-white" : "bg-stone-100 text-stone-800"} onClick={() => update({ sex: "male" })}>Macho</Button></div></div><div className="mt-6 flex gap-3"><Button type="button" className="bg-stone-100 text-stone-800" onClick={() => setStep(0)}>Atrás</Button><Button type="button" className="flex-1 bg-lime-700 text-white" onClick={advance}>Siguiente<ChevronRight size={20} aria-hidden="true" /></Button></div></> : <><p className="text-base text-stone-600">La edad y la foto son opcionales. Lo demás ya está listo.</p><div className="mt-6"><AnimalPhotoPicker value={form.photoUrl} animalName={form.name} disabled={isSaving} onChange={(photoUrl) => update({ photoUrl })} onPreparingChange={setIsPreparingPhoto} /></div><div className="mt-6"><FieldLabel>Edad aproximada en meses <span className="normal-case tracking-normal">(opcional)</span></FieldLabel><TextInput autoFocus inputMode="numeric" min="0" type="number" value={form.approximateAgeMonths} onChange={(event) => update({ approximateAgeMonths: event.target.value })} placeholder="Ejemplo: 36" /></div><div className="mt-6 rounded-2xl bg-stone-100 p-4"><p className="text-sm font-bold uppercase tracking-wide text-stone-500">Se agregará</p><p className="mt-1 text-2xl font-black text-stone-950">{form.name}</p><p className="mt-1 text-base text-stone-600">{selectedGroup?.name} · {form.sex === "female" ? "Hembra" : form.sex === "male" ? "Macho" : "Sexo pendiente"}</p><button type="button" disabled={isSaving} className="mt-3 text-base font-bold text-lime-800 underline disabled:opacity-50" onClick={() => setStep(0)}>Cambiar grupo</button></div><div className="mt-6 flex flex-col-reverse gap-3 sm:flex-row"><Button type="button" disabled={isSaving} className="bg-stone-100 text-stone-800" onClick={() => setStep(1)}>Atrás</Button><Button type="button" disabled={isSaving || isPreparingPhoto} className="flex-1 bg-lime-700 text-white" onClick={() => void save()}>{isSaving ? <><LoaderCircle className="animate-spin" size={20} aria-hidden="true" />Guardando animal…</> : isPreparingPhoto ? <><LoaderCircle className="animate-spin" size={20} aria-hidden="true" />Preparando foto…</> : <><CirclePlus size={20} aria-hidden="true" />Agregar animal</>}</Button></div></>}
       </Card>
     </div>
   </div>;
@@ -161,7 +174,7 @@ export const NewAnimalWizard = ({ groups, session, onClose, onSaved }: { groups:
 
 const AnimalRow = ({ animal, groupName, showGroup, onOpen }: { animal: Animal; groupName: string; showGroup: boolean; onOpen: () => void }) => (
   <button type="button" aria-label={`Abrir ficha de ${animal.name}`} className="flex min-h-20 w-full items-center gap-3 px-4 py-3 text-left transition hover:bg-lime-50 active:bg-lime-50 sm:px-5" onClick={onOpen}>
-    <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-lime-100 text-base font-black text-lime-950">{animal.name.slice(0, 1).toUpperCase()}</span>
+    <AnimalAvatar name={animal.name} photoUrl={animal.photoUrl} />
     <span className="min-w-0 flex-1"><span className="block truncate text-base font-black text-stone-950">{animal.name}</span><span className="mt-1 block text-sm text-stone-600">{animal.sex === "female" ? "Hembra" : animal.sex === "male" ? "Macho" : "Sexo pendiente"}{showGroup ? ` · ${groupName}` : ""}</span></span>
     <ChevronRight className="shrink-0 text-stone-400" size={20} aria-hidden="true" />
   </button>

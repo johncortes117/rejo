@@ -234,7 +234,7 @@ describe("Phase 0 daily flow", () => {
     const heiferGroup = groups.find((group) => group.name === "Vaconas");
     const timestamp = "2026-07-24T12:00:00.000Z";
     await db.animals.bulkPut([
-      { id: "animal-lucero", farmId: farm.id, name: "Lucero", sex: "female", birthDateEstimated: true, herdGroupId: milkingGroup?.id, status: "active", createdAt: timestamp, updatedAt: timestamp, createdBy: farm.createdBy },
+      { id: "animal-lucero", farmId: farm.id, name: "Lucero", sex: "female", birthDateEstimated: true, photoUrl: "data:image/jpeg;base64,cGhvdG8=", herdGroupId: milkingGroup?.id, status: "active", createdAt: timestamp, updatedAt: timestamp, createdBy: farm.createdBy },
       { id: "animal-nube", farmId: farm.id, name: "Nube", sex: "female", birthDateEstimated: true, herdGroupId: heiferGroup?.id, status: "active", createdAt: timestamp, updatedAt: timestamp, createdBy: farm.createdBy }
     ]);
 
@@ -247,6 +247,7 @@ describe("Phase 0 daily flow", () => {
     fireEvent.change(screen.getByRole("textbox", { name: "Buscar por nombre" }), { target: { value: "Lucero" } });
     await screen.findByText("Lucero");
     expect(screen.getByText("Hembra · En ordeño")).toBeInTheDocument();
+    expect(screen.getByRole("img", { name: "Foto de Lucero" })).toHaveAttribute("src", "data:image/jpeg;base64,cGhvdG8=");
   });
 
   it("puts milk withdrawal before health plan tasks and resolves a task in a focused view", async () => {

@@ -1,11 +1,12 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useLiveQuery } from "dexie-react-hooks";
-import { Archive, ArrowDown, ArrowUp, Beef, Check, CirclePlus, ClipboardPenLine, Clock3, FolderOpen, HeartPulse, Pencil, Save, ShieldPlus, SlidersHorizontal, Stethoscope, Syringe, X } from "lucide-react";
+import { Archive, ArrowDown, ArrowUp, Beef, Check, CirclePlus, ClipboardPenLine, Clock3, FolderOpen, HeartPulse, LoaderCircle, Pencil, Save, ShieldPlus, SlidersHorizontal, Stethoscope, Syringe, X } from "lucide-react";
 import { Button, Card, FieldLabel, Notice, SegmentedControl, TextInput } from "@/components/ui";
 import type { Animal, AnimalSex, FarmSession, HerdGroup } from "@/domain/models";
 import { db } from "@/db/rejo-db";
 import { nowInFarmTimezone } from "@/domain/time";
 import { archiveAnimal, saveAnimal } from "@/features/animals/animals";
+import { AnimalAvatar, AnimalPhotoPicker } from "@/features/animals/animal-photo";
 import { createHerdGroup, ensureDefaultHerdGroups, renameHerdGroup, reorderHerdGroup } from "@/features/animals/herd-groups";
 import { recordCalving, recordDryOff, recordHeat, recordPregnancyCheck, recordService } from "@/features/reproduction/events";
 import { computeReproductiveState } from "@/features/reproduction/reproductive-state";
@@ -23,6 +24,7 @@ interface AnimalFormState {
   name: string;
   sex: "" | AnimalSex;
   approximateAgeMonths: string;
+  photoUrl?: string;
   herdGroupId?: string;
 }
 
@@ -35,6 +37,7 @@ const toFormState = (animal: Animal): AnimalFormState => ({
   name: animal.name,
   sex: animal.sex ?? "",
   approximateAgeMonths: "",
+  photoUrl: animal.photoUrl,
   herdGroupId: animal.herdGroupId
 });
 
@@ -53,14 +56,16 @@ const screenShell = "fixed inset-0 z-50 overflow-y-auto bg-stone-100";
 const FullScreenHeader = ({
   eyebrow,
   title,
-  onClose
+  onClose,
+  disabled = false
 }: {
   eyebrow: string;
   title: string;
   onClose: () => void;
+  disabled?: boolean;
 }) => (
   <header className="sticky top-0 z-10 flex items-center gap-4 border-b border-stone-200 bg-white/95 px-4 py-3 backdrop-blur sm:px-6">
-    <Button type="button" className="min-h-11 shrink-0 bg-stone-100 px-3 text-stone-800" onClick={onClose} aria-label="Cerrar ficha">
+    <Button type="button" disabled={disabled} className="min-h-11 shrink-0 bg-stone-100 px-3 text-stone-800" onClick={onClose} aria-label="Cerrar ficha">
       <X size={19} aria-hidden="true" />
     </Button>
     <div className="min-w-0">
@@ -276,26 +281,37 @@ export const AnimalEditor = ({ animal, groups, defaultGroupId, session, onClose,
   const [form, setForm] = useState<AnimalFormState>({ ...(animal ? toFormState(animal) : emptyForm), herdGroupId: animal?.herdGroupId ?? defaultGroupId });
   const [step, setStep] = useState(1);
   const [error, setError] = useState<string>();
+  const [isPreparingPhoto, setIsPreparingPhoto] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
+  const savingRef = useRef(false);
   const isEditing = Boolean(animal);
   const updateForm = (update: Partial<AnimalFormState>) => setForm((current) => ({ ...current, ...update }));
   const save = async () => {
+    if (savingRef.current || isPreparingPhoto) return;
+    savingRef.current = true;
+    setIsSaving(true);
     setError(undefined);
+    let didSave = false;
     try {
-      await saveAnimal(db, { farmId: session.farmId, userId: session.userId, id: form.id, name: form.name, sex: form.sex || undefined, approximateAgeMonths: form.approximateAgeMonths ? Number(form.approximateAgeMonths) : undefined, herdGroupId: form.herdGroupId });
-      onSaved(isEditing ? "La información quedó corregida." : "La vaca quedó guardada.");
+      await saveAnimal(db, { farmId: session.farmId, userId: session.userId, id: form.id, name: form.name, sex: form.sex || undefined, approximateAgeMonths: form.approximateAgeMonths ? Number(form.approximateAgeMonths) : undefined, photoUrl: form.photoUrl ?? (animal?.photoUrl ? null : undefined), herdGroupId: form.herdGroupId });
+      didSave = true;
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : "No se pudo guardar la vaca.");
+    } finally {
+      savingRef.current = false;
+      setIsSaving(false);
     }
+    if (didSave) onSaved(isEditing ? "La información quedó corregida." : "La vaca quedó guardada.");
   };
 
   return <div className={screenShell} role="dialog" aria-modal="true" aria-label={isEditing ? "Corregir vaca" : "Registrar una vaca"}>
-    <FullScreenHeader eyebrow={isEditing ? "Editar ficha" : `Registrar vaca · paso ${step} de 2`} title={isEditing ? animal!.name : step === 1 ? "¿Cómo la conoces?" : "Un poco más de información"} onClose={onClose} />
-    <main className="mx-auto max-w-2xl p-4 pb-10 pt-6 sm:p-6">
+    <FullScreenHeader eyebrow={isEditing ? "Editar ficha" : `Registrar vaca · paso ${step} de 2`} title={isEditing ? animal!.name : step === 1 ? "¿Cómo la conoces?" : "Un poco más de información"} onClose={onClose} disabled={isSaving || isPreparingPhoto} />
+    <div className="mx-auto max-w-2xl p-4 pb-10 pt-6 sm:p-6">
       {error ? <div className="mb-5"><Notice tone="error">{error}</Notice></div> : null}
       <Card>
-        {step === 1 ? <><p className="text-base text-stone-600">Empieza con lo esencial. Podrás completar o corregir el resto cuando quieras.</p><div className="mt-6"><FieldLabel>Nombre o apodo</FieldLabel><TextInput autoFocus value={form.name} onChange={(event) => updateForm({ name: event.target.value })} placeholder="Ejemplo: Pintada" /></div><div className="mt-6"><FieldLabel>Sexo <span className="normal-case tracking-normal">(opcional)</span></FieldLabel><div className="grid grid-cols-2 gap-3"><Button type="button" aria-pressed={form.sex === "female"} className={form.sex === "female" ? "bg-lime-700 text-white" : "bg-stone-100 text-stone-800"} onClick={() => updateForm({ sex: "female" })}>Hembra</Button><Button type="button" aria-pressed={form.sex === "male"} className={form.sex === "male" ? "bg-lime-700 text-white" : "bg-stone-100 text-stone-800"} onClick={() => updateForm({ sex: "male" })}>Macho</Button></div></div><Button type="button" className="mt-7 w-full bg-lime-700 text-white" onClick={() => form.name.trim() ? setStep(2) : setError("Escribe al menos el nombre de la vaca.")}><CirclePlus size={20} aria-hidden="true" />{isEditing ? "Continuar" : "Siguiente"}</Button></> : <><p className="text-base text-stone-600">Este dato es opcional y solo sirve como referencia.</p><div className="mt-6"><FieldLabel>Edad aproximada en meses <span className="normal-case tracking-normal">(opcional)</span></FieldLabel><TextInput autoFocus inputMode="numeric" min="0" type="number" value={form.approximateAgeMonths} onChange={(event) => updateForm({ approximateAgeMonths: event.target.value })} placeholder="Ejemplo: 36" /></div><div className="mt-6"><FieldLabel>Grupo del rejo</FieldLabel><select className="min-h-12 w-full rounded-2xl border border-stone-300 bg-stone-50 px-4 text-lg" value={form.herdGroupId ?? ""} onChange={(event) => updateForm({ herdGroupId: event.target.value || undefined })}>{groups.map((group) => <option key={group.id} value={group.id}>{group.name}</option>)}</select></div><div className="mt-7 rounded-2xl bg-stone-100 p-4"><p className="text-sm font-bold uppercase tracking-wide text-stone-500">Así quedará registrada</p><p className="mt-1 text-2xl font-black text-stone-950">{form.name}</p><p className="mt-1 text-base text-stone-600">{form.sex === "female" ? "Hembra" : form.sex === "male" ? "Macho" : "Sexo pendiente"} · {groups.find((group) => group.id === form.herdGroupId)?.name ?? "Sin grupo"}</p></div><div className="mt-6 flex flex-col-reverse gap-3 sm:flex-row"><Button type="button" className="bg-stone-100 text-stone-800" onClick={() => setStep(1)}>Atrás</Button><Button type="button" className="flex-1 bg-lime-700 text-white" onClick={() => void save()}><Save size={20} aria-hidden="true" />{isEditing ? "Guardar cambios" : "Guardar vaca"}</Button></div></>}
+        {step === 1 ? <><p className="text-base text-stone-600">Empieza con lo esencial. Podrás completar o corregir el resto cuando quieras.</p><div className="mt-6"><FieldLabel>Nombre o apodo</FieldLabel><TextInput autoFocus disabled={isSaving} value={form.name} onChange={(event) => updateForm({ name: event.target.value })} placeholder="Ejemplo: Pintada" /></div><div className="mt-6"><FieldLabel>Sexo <span className="normal-case tracking-normal">(opcional)</span></FieldLabel><div className="grid grid-cols-2 gap-3"><Button type="button" disabled={isSaving} aria-pressed={form.sex === "female"} className={form.sex === "female" ? "bg-lime-700 text-white" : "bg-stone-100 text-stone-800"} onClick={() => updateForm({ sex: "female" })}>Hembra</Button><Button type="button" disabled={isSaving} aria-pressed={form.sex === "male"} className={form.sex === "male" ? "bg-lime-700 text-white" : "bg-stone-100 text-stone-800"} onClick={() => updateForm({ sex: "male" })}>Macho</Button></div></div><Button type="button" disabled={isSaving} className="mt-7 w-full bg-lime-700 text-white" onClick={() => form.name.trim() ? setStep(2) : setError("Escribe al menos el nombre de la vaca.")}><CirclePlus size={20} aria-hidden="true" />{isEditing ? "Continuar" : "Siguiente"}</Button></> : <><p className="text-base text-stone-600">La foto, la edad y el grupo son opcionales.</p><div className="mt-6"><AnimalPhotoPicker value={form.photoUrl} animalName={form.name} disabled={isSaving} onChange={(photoUrl) => updateForm({ photoUrl })} onPreparingChange={setIsPreparingPhoto} /></div><div className="mt-6"><FieldLabel>Edad aproximada en meses <span className="normal-case tracking-normal">(opcional)</span></FieldLabel><TextInput autoFocus disabled={isSaving} inputMode="numeric" min="0" type="number" value={form.approximateAgeMonths} onChange={(event) => updateForm({ approximateAgeMonths: event.target.value })} placeholder="Ejemplo: 36" /></div><div className="mt-6"><FieldLabel>Grupo del rejo</FieldLabel><select disabled={isSaving} className="min-h-12 w-full rounded-2xl border border-stone-300 bg-stone-50 px-4 text-lg disabled:cursor-not-allowed disabled:opacity-50" value={form.herdGroupId ?? ""} onChange={(event) => updateForm({ herdGroupId: event.target.value || undefined })}>{groups.map((group) => <option key={group.id} value={group.id}>{group.name}</option>)}</select></div><div className="mt-7 rounded-2xl bg-stone-100 p-4"><p className="text-sm font-bold uppercase tracking-wide text-stone-500">Así quedará registrada</p><p className="mt-1 text-2xl font-black text-stone-950">{form.name}</p><p className="mt-1 text-base text-stone-600">{form.sex === "female" ? "Hembra" : form.sex === "male" ? "Macho" : "Sexo pendiente"} · {groups.find((group) => group.id === form.herdGroupId)?.name ?? "Sin grupo"}</p></div><div className="mt-6 flex flex-col-reverse gap-3 sm:flex-row"><Button type="button" disabled={isSaving || isPreparingPhoto} className="bg-stone-100 text-stone-800" onClick={() => setStep(1)}>Atrás</Button><Button type="button" disabled={isSaving || isPreparingPhoto} className="flex-1 bg-lime-700 text-white" onClick={() => void save()}>{isSaving ? <><LoaderCircle className="animate-spin" size={20} aria-hidden="true" />{isEditing ? "Guardando cambios…" : "Guardando vaca…"}</> : isPreparingPhoto ? <><LoaderCircle className="animate-spin" size={20} aria-hidden="true" />Preparando foto…</> : <><Save size={20} aria-hidden="true" />{isEditing ? "Guardar cambios" : "Guardar vaca"}</>}</Button></div></>}
       </Card>
-    </main>
+    </div>
   </div>;
 };
 
@@ -306,7 +322,7 @@ export const AnimalDetail = ({ animal, groups, session, initialSection = "genera
   return <div className={screenShell} role="dialog" aria-modal="true" aria-label={`Ficha de ${animal.name}`}>
     <FullScreenHeader eyebrow={groupName} title={animal.name} onClose={onClose} />
     <div className="mx-auto max-w-2xl p-4 pb-10 pt-6 sm:p-6">
-      <section className="flex items-center gap-3 rounded-3xl border border-stone-200 bg-white p-4 shadow-[0_8px_28px_rgba(28,25,23,0.06)]"><span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-lime-100 text-xl font-black text-lime-950">{animal.name.slice(0, 1).toUpperCase()}</span><div className="min-w-0 flex-1"><p className="font-black text-stone-950">{sexLabel}{animal.birthDateEstimated ? " · edad estimada" : ""}</p><p className="mt-1 text-sm text-stone-600">Grupo: {groupName}</p></div><Button type="button" className="min-h-11 shrink-0 bg-stone-100 px-3 text-stone-800" onClick={onEdit} aria-label={`Editar datos de ${animal.name}`}><Pencil size={19} aria-hidden="true" /><span className="hidden sm:inline">Editar</span></Button></section>
+      <section className="flex items-center gap-3 rounded-3xl border border-stone-200 bg-white p-4 shadow-[0_8px_28px_rgba(28,25,23,0.06)]"><AnimalAvatar name={animal.name} photoUrl={animal.photoUrl} size="detail" /><div className="min-w-0 flex-1"><p className="font-black text-stone-950">{sexLabel}{animal.birthDateEstimated ? " · edad estimada" : ""}</p><p className="mt-1 text-sm text-stone-600">Grupo: {groupName}</p></div><Button type="button" className="min-h-11 shrink-0 bg-stone-100 px-3 text-stone-800" onClick={onEdit} aria-label={`Editar datos de ${animal.name}`}><Pencil size={19} aria-hidden="true" /><span className="hidden sm:inline">Editar</span></Button></section>
       <div className="mt-5"><SegmentedControl ariaLabel="Secciones de la ficha" value={section} onChange={setSection} options={[{ id: "general", label: "General" }, { id: "reproduction", label: "Reproducción" }, { id: "health", label: "Sanidad" }]} /></div>
       <div className="mt-5">{section === "general" ? <Card><p className="text-sm font-bold uppercase tracking-wide text-stone-500">Datos generales</p><dl className="mt-4 space-y-3 text-base"><div className="flex justify-between gap-4"><dt className="text-stone-600">Grupo</dt><dd className="font-bold text-stone-950">{groupName}</dd></div><div className="flex justify-between gap-4"><dt className="text-stone-600">Sexo</dt><dd className="font-bold text-stone-950">{sexLabel}</dd></div><div className="flex justify-between gap-4"><dt className="text-stone-600">Edad</dt><dd className="font-bold text-stone-950">{animal.birthDateEstimated ? "Estimación guardada" : "Sin estimación"}</dd></div></dl>{onArchive ? <Button type="button" className="mt-6 w-full bg-red-50 text-red-900 ring-1 ring-red-100" onClick={onArchive}><Archive size={20} aria-hidden="true" />Sacar de la lista</Button> : null}</Card> : section === "reproduction" ? <ReproductionPanel animal={animal} session={session} /> : <HealthPanel animal={animal} session={session} />}</div>
     </div>

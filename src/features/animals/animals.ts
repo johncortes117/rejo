@@ -13,7 +13,7 @@ export interface SaveAnimalInput {
   sex?: AnimalSex;
   approximateAgeMonths?: number;
   id?: string;
-  photoUrl?: string;
+  photoUrl?: string | null;
   herdGroupId?: string;
 }
 
@@ -47,7 +47,7 @@ export const saveAnimal = async (
     birthDate:
       approximateAge === undefined ? existing?.birthDate : estimateBirthDate(approximateAge, now),
     birthDateEstimated: approximateAge !== undefined || existing?.birthDateEstimated || false,
-    photoUrl: input.photoUrl ?? existing?.photoUrl,
+    photoUrl: input.photoUrl === null ? undefined : input.photoUrl ?? existing?.photoUrl,
     herdGroupId: input.herdGroupId ?? existing?.herdGroupId,
     status: existing?.status ?? "active",
     createdAt: existing?.createdAt ?? timestamp,
@@ -58,7 +58,13 @@ export const saveAnimal = async (
   await database.transaction("rw", database.animals, database.syncQueue, async () => {
     await database.animals.put(animal);
     await database.syncQueue.put(
-      queueUpsert(animal.farmId, "animals", animal.id, toPayload(animal), timestamp)
+      queueUpsert(
+        animal.farmId,
+        "animals",
+        animal.id,
+        toPayload(input.photoUrl === null ? { ...animal, photoUrl: null } : animal),
+        timestamp
+      )
     );
   });
 
