@@ -1,10 +1,10 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useLiveQuery } from "dexie-react-hooks";
 import type { Session } from "@supabase/supabase-js";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
-import { AlertTriangle, BadgeDollarSign, Beef, ChartNoAxesCombined, CircleCheck, ClipboardPenLine, CloudUpload, House, Menu, Milk, Sprout, TrendingDown, TrendingUp } from "lucide-react";
+import { AlertTriangle, BadgeDollarSign, Beef, ChartNoAxesCombined, CircleCheck, ClipboardPenLine, CloudCheck, CloudUpload, House, LoaderCircle, Menu, Milk, Sprout, TrendingDown, TrendingUp } from "lucide-react";
 import { Button, Card, FieldLabel, Notice, TextInput } from "@/components/ui";
 import { clearFarmSession, provisionFarm, readFarmSession, saveFarmSession } from "@/db/bootstrap";
 import { db } from "@/db/rejo-db";
@@ -241,6 +241,8 @@ const AppShell = ({ session, onSignOut }: { session: FarmSession; onSignOut?: ()
   const [page, setPage] = useState<Page>("home");
   const [returnPage, setReturnPage] = useState<Page>("home");
   const [syncStatus, setSyncStatus] = useState<SyncStatus>();
+  const [isSyncing, setIsSyncing] = useState(false);
+  const syncInFlight = useRef(false);
   const pendingCount = useLiveQuery(
     () => db.syncQueue.filter((item) => item.farmId === session.farmId && !item.completedAt).count(),
     [session.farmId],
@@ -248,10 +250,30 @@ const AppShell = ({ session, onSignOut }: { session: FarmSession; onSignOut?: ()
   );
 
   const sync = useCallback(async () => {
-    const status = await syncPendingOperations(db, session.farmId);
-    setSyncStatus(status);
-    if (status.state === "synced") {
-      await pullFarmChanges(db, session.farmId);
+    if (syncInFlight.current) {
+      return;
+    }
+
+    syncInFlight.current = true;
+    setIsSyncing(true);
+    let processed = 0;
+
+    try {
+      const status = await syncPendingOperations(db, session.farmId);
+      processed = status.processed;
+      setSyncStatus(status);
+      if (status.state === "synced") {
+        await pullFarmChanges(db, session.farmId);
+      }
+    } catch (caught) {
+      setSyncStatus({
+        state: "failed",
+        processed,
+        error: caught instanceof Error ? caught.message : "No se pudo completar el respaldo."
+      });
+    } finally {
+      syncInFlight.current = false;
+      setIsSyncing(false);
     }
   }, [session.farmId]);
 
@@ -273,6 +295,10 @@ const AppShell = ({ session, onSignOut }: { session: FarmSession; onSignOut?: ()
   };
   const isOffline = syncStatus?.state === "offline" || !navigator.onLine;
   const canBackUp = isSupabaseConfigured && pendingCount > 0;
+  const pendingLabel = `${pendingCount} ${pendingCount === 1 ? "cambio" : "cambios"}`;
+  const backupFailed = syncStatus?.state === "failed";
+  const completedBackupCount = syncStatus?.state === "synced" ? syncStatus.processed : 0;
+  const backupSucceeded = !isSyncing && pendingCount === 0 && completedBackupCount > 0;
 
   return (
     <div className="mx-auto flex min-h-screen max-w-2xl flex-col bg-transparent">
@@ -282,16 +308,20 @@ const AppShell = ({ session, onSignOut }: { session: FarmSession; onSignOut?: ()
           <button
             className="inline-flex min-h-11 shrink-0 items-center gap-2 rounded-xl bg-white px-3 text-sm font-bold text-lime-950 disabled:opacity-60"
             type="button"
-            disabled={isOffline}
-            aria-label={isOffline ? "No se puede respaldar sin señal" : `Respaldar ${pendingCount} cambios en la nube`}
-            title="Envía los cambios guardados en este teléfono a la nube"
+            disabled={isOffline || isSyncing}
+            aria-label={isSyncing ? `Respaldando ${pendingLabel}` : isOffline ? "No se puede respaldar sin señal" : backupFailed ? `Reintentar respaldo de ${pendingLabel}` : `Respaldar ${pendingLabel} en la nube`}
+            title={isSyncing ? "No cierres la app mientras termina el respaldo" : "Envía los cambios guardados en este teléfono a la nube"}
             onClick={() => void sync()}
           >
-            <CloudUpload size={18} aria-hidden="true" />
-            {isOffline ? "Sin señal" : `Respaldar ${pendingCount}`}
+            {isSyncing ? <LoaderCircle className="animate-spin" size={18} aria-hidden="true" /> : <CloudUpload size={18} aria-hidden="true" />}
+            {isSyncing ? `Respaldando ${pendingCount}` : isOffline ? "Sin señal" : backupFailed ? `Reintentar ${pendingCount}` : `Respaldar ${pendingCount}`}
           </button>
-        ) : null}
+        ) : backupSucceeded ? <span className="inline-flex min-h-11 items-center gap-2 rounded-xl bg-lime-900 px-3 text-sm font-bold text-lime-100" aria-label="Respaldo al día"><CloudCheck size={18} aria-hidden="true" />Al día</span> : null}
       </header>
+
+      {isSyncing ? <div className="px-4 pt-3 sm:px-6" role="status" aria-live="polite"><Notice tone="info">Respaldando {pendingLabel}. No cierres la app hasta que termine.</Notice></div> : null}
+      {backupFailed ? <div className="px-4 pt-3 sm:px-6" role="alert"><Notice tone="error"><p>No se pudo respaldar. {pendingCount === 1 ? "Tu" : "Tus"} {pendingLabel} {pendingCount === 1 ? "sigue" : "siguen"} guardado{pendingCount === 1 ? "" : "s"} en este celular. Revisa la conexión e inténtalo de nuevo.</p><details className="mt-2"><summary className="cursor-pointer font-bold">Ver detalle</summary><p className="mt-1 text-sm">{syncStatus?.state === "failed" ? syncStatus.error : ""}</p></details></Notice></div> : null}
+      {backupSucceeded ? <div className="px-4 pt-3 sm:px-6" role="status" aria-live="polite"><Notice tone="success">{completedBackupCount} {completedBackupCount === 1 ? "cambio quedó respaldado" : "cambios quedaron respaldados"} en la nube.</Notice></div> : null}
 
       <main className="flex-1 p-4 pb-6 pt-6 sm:p-6">
         {page === "home" ? <HomePage session={session} onCapture={() => setPage("capture")} onHerd={() => setPage("herd")} onFinance={() => setPage("finance")} onPaddocks={() => openPaddocks("home")} onMilkControl={() => openMilkControl("home")} /> : null}
