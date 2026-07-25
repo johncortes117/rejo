@@ -156,6 +156,44 @@ describe("Phase 0 daily flow", () => {
     await screen.findByRole("heading", { name: "Reproducción" });
   });
 
+  it("keeps reproduction focused on pending animals before showing the full rejo", async () => {
+    Object.defineProperty(navigator, "onLine", { configurable: true, value: false });
+    render(<App />);
+
+    fireEvent.change(screen.getByPlaceholderText("Ejemplo: Finca El Capulí"), {
+      target: { value: "Finca La Pintada" }
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Empezar" }));
+
+    await screen.findByRole("heading", { name: "La finca, al día." });
+    fireEvent.click(screen.getByRole("button", { name: "Rejo" }));
+    await screen.findByRole("heading", { name: "El rejo" });
+    fireEvent.click(screen.getByRole("button", { name: /Reproducción/ }));
+    await screen.findByRole("heading", { name: "Reproducción" });
+
+    const [farm] = await db.farms.toArray();
+    const timestamp = "2026-07-24T12:00:00.000Z";
+    await db.animals.bulkPut([
+      { id: "reproduction-estrella", farmId: farm.id, name: "Estrella", sex: "female", birthDateEstimated: true, status: "active", createdAt: timestamp, updatedAt: timestamp, createdBy: farm.createdBy },
+      { id: "reproduction-canela", farmId: farm.id, name: "Canela", sex: "female", birthDateEstimated: true, status: "active", createdAt: timestamp, updatedAt: timestamp, createdBy: farm.createdBy },
+      { id: "reproduction-luna", farmId: farm.id, name: "Luna", sex: "female", birthDateEstimated: true, status: "active", createdAt: timestamp, updatedAt: timestamp, createdBy: farm.createdBy }
+    ]);
+    await db.heats.put({ id: "heat-estrella", farmId: farm.id, animalId: "reproduction-estrella", date: "2026-07-24", served: false, createdAt: timestamp, updatedAt: timestamp, createdBy: farm.createdBy });
+    await db.services.put({ id: "service-canela", farmId: farm.id, animalId: "reproduction-canela", date: "2026-06-01", type: "ai", serviceNumber: 1, createdAt: timestamp, updatedAt: timestamp, createdBy: farm.createdBy });
+
+    await screen.findByText("2 animales por revisar");
+    expect(screen.queryByText("Primero mira qué animales requieren atención; después abre su ficha para registrar el evento.")).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Ver 2 pendientes" })).toHaveAttribute("aria-pressed", "true");
+    expect(screen.queryByText("Luna")).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "Ver las 3 vacas" }));
+    await screen.findByText("Luna");
+    expect(screen.getByRole("button", { name: "Ver las 3 vacas" })).toHaveAttribute("aria-pressed", "true");
+
+    fireEvent.click(screen.getByRole("button", { name: "Ver 2 pendientes" }));
+    await waitFor(() => expect(screen.queryByText("Luna")).not.toBeInTheDocument());
+  });
+
   it("opens the global health worklist from the herd hub", async () => {
     Object.defineProperty(navigator, "onLine", { configurable: true, value: false });
     render(<App />);
@@ -200,8 +238,8 @@ describe("Phase 0 daily flow", () => {
     fireEvent.click(screen.getByRole("button", { name: "Empezar control" }));
 
     await screen.findByRole("dialog", { name: "Registrar control lechero" });
-    expect(screen.getByRole("button", { name: /En ordeño/ })).toHaveAttribute("aria-pressed", "true");
-    fireEvent.change(screen.getByRole("spinbutton", { name: "Litros de Lucero" }), { target: { value: "12.5" } });
+    expect(await screen.findByRole("button", { name: /En ordeño/ })).toHaveAttribute("aria-pressed", "true");
+    fireEvent.change(await screen.findByRole("spinbutton", { name: "Litros de Lucero" }), { target: { value: "12.5" } });
     expect(screen.getByRole("progressbar")).toHaveAttribute("aria-valuenow", "1");
     fireEvent.click(screen.getByRole("button", { name: "Guardar 1 lectura" }));
 

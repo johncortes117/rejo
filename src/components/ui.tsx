@@ -1,4 +1,4 @@
-import { forwardRef, type ButtonHTMLAttributes, type InputHTMLAttributes, type PropsWithChildren } from "react";
+import { forwardRef, type ButtonHTMLAttributes, type InputHTMLAttributes, type PropsWithChildren, type ReactNode } from "react";
 import { CircleAlert, CircleCheck, Info, TriangleAlert } from "lucide-react";
 
 export const Card = ({ children }: PropsWithChildren) => (
@@ -39,6 +39,38 @@ export const TextInput = forwardRef<HTMLInputElement, InputHTMLAttributes<HTMLIn
 );
 
 TextInput.displayName = "TextInput";
+
+export interface SegmentedControlOption<T extends string> {
+  id: T;
+  label: ReactNode;
+  ariaLabel?: string;
+}
+
+export const SegmentedControl = <T extends string,>({
+  ariaLabel,
+  value,
+  options,
+  onChange,
+  className = ""
+}: {
+  ariaLabel: string;
+  value: T;
+  options: SegmentedControlOption<T>[];
+  onChange: (value: T) => void;
+  className?: string;
+}) => (
+  <div
+    className={"grid gap-1 rounded-2xl bg-stone-100 p-1.5 " + className}
+    role="group"
+    aria-label={ariaLabel}
+    style={{ gridTemplateColumns: `repeat(${options.length}, minmax(0, 1fr))` }}
+  >
+    {options.map((option) => {
+      const active = option.id === value;
+      return <button key={option.id} type="button" aria-label={option.ariaLabel} aria-pressed={active} className={`min-h-11 rounded-xl px-3 text-sm font-black transition focus:outline-none focus:ring-4 focus:ring-lime-200 ${active ? "bg-white text-lime-950 shadow-sm" : "text-stone-600"}`} onClick={() => onChange(option.id)}>{option.label}</button>;
+    })}
+  </div>
+);
 
 export const Notice = ({
   children,
