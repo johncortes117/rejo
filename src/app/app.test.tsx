@@ -173,6 +173,44 @@ describe("Phase 0 daily flow", () => {
     await screen.findByRole("heading", { name: "Sanidad" });
   });
 
+  it("opens milk control as a focused capture journey", async () => {
+    Object.defineProperty(navigator, "onLine", { configurable: true, value: false });
+    render(<App />);
+
+    fireEvent.change(screen.getByPlaceholderText("Ejemplo: Finca El Capulí"), {
+      target: { value: "Finca La Pintada" }
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Empezar" }));
+
+    await screen.findByRole("heading", { name: "La finca, al día." });
+    fireEvent.click(screen.getByRole("button", { name: "Abrir control lechero" }));
+    await screen.findByRole("heading", { name: "Control lechero" });
+    await waitFor(async () => expect(await db.herdGroups.count()).toBe(4));
+    const [farm] = await db.farms.toArray();
+    const groups = await db.herdGroups.toArray();
+    const milkingGroup = groups.find((group) => group.name === "En ordeño");
+    const heiferGroup = groups.find((group) => group.name === "Vaconas");
+    const timestamp = "2026-07-24T12:00:00.000Z";
+    await db.animals.bulkPut([
+      { id: "milk-control-lucero", farmId: farm.id, name: "Lucero", sex: "female", birthDateEstimated: true, herdGroupId: milkingGroup?.id, status: "active", createdAt: timestamp, updatedAt: timestamp, createdBy: farm.createdBy },
+      { id: "milk-control-ternera", farmId: farm.id, name: "Ternera", sex: "female", birthDateEstimated: true, herdGroupId: heiferGroup?.id, status: "active", createdAt: timestamp, updatedAt: timestamp, createdBy: farm.createdBy }
+    ]);
+
+    expect(screen.queryByRole("dialog", { name: "Registrar control lechero" })).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Empezar control" }));
+
+    await screen.findByRole("dialog", { name: "Registrar control lechero" });
+    expect(screen.getByRole("button", { name: /En ordeño/ })).toHaveAttribute("aria-pressed", "true");
+    fireEvent.change(screen.getByRole("spinbutton", { name: "Litros de Lucero" }), { target: { value: "12.5" } });
+    expect(screen.getByRole("progressbar")).toHaveAttribute("aria-valuenow", "1");
+    fireEvent.click(screen.getByRole("button", { name: "Guardar 1 lectura" }));
+
+    await waitFor(async () => expect(await db.milkControlRecords.count()).toBe(1));
+    expect((await db.milkControlRecords.toArray())[0]).toMatchObject({ animalId: "milk-control-lucero", liters: 12.5 });
+    await screen.findByText("El control lechero quedó guardado en el celular.");
+    expect(screen.queryByRole("dialog", { name: "Registrar control lechero" })).not.toBeInTheDocument();
+  });
+
   it("keeps operational health out of farm settings", async () => {
     Object.defineProperty(navigator, "onLine", { configurable: true, value: false });
     render(<App />);
