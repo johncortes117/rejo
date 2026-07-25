@@ -49,6 +49,7 @@ const camelToSnake: Record<string, string> = {
   birthDate: "birth_date",
   birthDateEstimated: "birth_date_estimated",
   photoUrl: "photo_url",
+  previousCalvingCount: "previous_calving_count",
   readBy: "read_by",
   animalId: "animal_id",
   detectedBy: "detected_by",

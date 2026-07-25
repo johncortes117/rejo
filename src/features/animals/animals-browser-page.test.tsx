@@ -44,12 +44,14 @@ describe("NewAnimalWizard", () => {
     fireEvent.click(screen.getByRole("button", { name: "Continuar" }));
     fireEvent.change(screen.getByPlaceholderText("Ejemplo: Pintada"), { target: { value: "Nube" } });
     fireEvent.click(screen.getByRole("button", { name: "Siguiente" }));
+    fireEvent.change(screen.getByRole("spinbutton", { name: "Partos antes de registrarla" }), { target: { value: "2" } });
 
     const saveButton = screen.getByRole("button", { name: "Agregar animal" });
     fireEvent.click(saveButton);
     fireEvent.click(saveButton);
 
     expect(saveAnimalMock).toHaveBeenCalledTimes(1);
+    expect(saveAnimalMock).toHaveBeenCalledWith(expect.anything(), expect.objectContaining({ previousCalvingCount: 2 }));
     expect(screen.getByRole("button", { name: "Guardando animal…" })).toBeDisabled();
 
     resolveSave?.();

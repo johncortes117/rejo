@@ -14,6 +14,7 @@ export interface SaveAnimalInput {
   approximateAgeMonths?: number;
   id?: string;
   photoUrl?: string | null;
+  previousCalvingCount?: number | null;
   herdGroupId?: string;
 }
 
@@ -39,6 +40,12 @@ export const saveAnimal = async (
     input.approximateAgeMonths === undefined || Number.isNaN(input.approximateAgeMonths)
       ? undefined
       : Math.max(0, input.approximateAgeMonths);
+  const previousCalvingCount =
+    input.previousCalvingCount === null
+      ? undefined
+      : input.previousCalvingCount === undefined || Number.isNaN(input.previousCalvingCount)
+        ? existing?.previousCalvingCount
+        : Math.max(0, Math.floor(input.previousCalvingCount));
   const animal: Animal = {
     id: existing?.id ?? createUuidV7(now.getTime()),
     farmId: input.farmId,
@@ -48,6 +55,7 @@ export const saveAnimal = async (
       approximateAge === undefined ? existing?.birthDate : estimateBirthDate(approximateAge, now),
     birthDateEstimated: approximateAge !== undefined || existing?.birthDateEstimated || false,
     photoUrl: input.photoUrl === null ? undefined : input.photoUrl ?? existing?.photoUrl,
+    previousCalvingCount,
     herdGroupId: input.herdGroupId ?? existing?.herdGroupId,
     status: existing?.status ?? "active",
     createdAt: existing?.createdAt ?? timestamp,
@@ -62,7 +70,11 @@ export const saveAnimal = async (
         animal.farmId,
         "animals",
         animal.id,
-        toPayload(input.photoUrl === null ? { ...animal, photoUrl: null } : animal),
+        toPayload({
+          ...animal,
+          ...(input.photoUrl === null ? { photoUrl: null } : {}),
+          ...(input.previousCalvingCount === null ? { previousCalvingCount: null } : {})
+        }),
         timestamp
       )
     );

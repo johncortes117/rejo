@@ -46,6 +46,7 @@ export interface Animal extends RecordMeta {
   birthDate?: string;
   birthDateEstimated: boolean;
   photoUrl?: string;
+  previousCalvingCount?: number;
   motherId?: EntityId;
   herdGroupId?: EntityId;
   status: "active" | "sold" | "dead" | "culled";

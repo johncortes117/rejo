@@ -18,6 +18,7 @@ interface NewAnimalForm {
   name: string;
   sex: "" | AnimalSex;
   approximateAgeMonths: string;
+  previousCalvingCount: string;
   photoUrl?: string;
   herdGroupId?: string;
 }
@@ -30,7 +31,7 @@ const groupDescriptions: Record<string, string> = {
 };
 
 const screenShell = "fixed inset-0 z-50 overflow-y-auto bg-stone-50";
-const emptyForm: NewAnimalForm = { name: "", sex: "", approximateAgeMonths: "" };
+const emptyForm: NewAnimalForm = { name: "", sex: "", approximateAgeMonths: "", previousCalvingCount: "" };
 
 const groupForAnimal = (animal: Animal, groups: HerdGroup[]): string | undefined => animal.herdGroupId ?? groups[0]?.id;
 
@@ -146,7 +147,7 @@ export const NewAnimalWizard = ({ groups, session, onClose, onSaved }: { groups:
     setError(undefined);
     let didSave = false;
     try {
-      await saveAnimal(db, { farmId: session.farmId, userId: session.userId, name: form.name, sex: form.sex || undefined, approximateAgeMonths: form.approximateAgeMonths ? Number(form.approximateAgeMonths) : undefined, photoUrl: form.photoUrl, herdGroupId: form.herdGroupId });
+      await saveAnimal(db, { farmId: session.farmId, userId: session.userId, name: form.name, sex: form.sex || undefined, approximateAgeMonths: form.approximateAgeMonths ? Number(form.approximateAgeMonths) : undefined, previousCalvingCount: form.previousCalvingCount ? Number(form.previousCalvingCount) : undefined, photoUrl: form.photoUrl, herdGroupId: form.herdGroupId });
       didSave = true;
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : "No se pudo guardar el animal.");
@@ -166,7 +167,30 @@ export const NewAnimalWizard = ({ groups, session, onClose, onSaved }: { groups:
     <div className="mx-auto max-w-2xl p-4 pb-10 pt-6 sm:p-6">
       {error ? <div className="mb-5"><Notice tone="error">{error}</Notice></div> : null}
       <Card>
-        {step === 0 ? <><p className="text-base text-stone-600">Primero organiza dónde verás al animal. Podrás cambiarlo luego desde la ficha.</p><div className="mt-5 grid gap-3 sm:grid-cols-2">{groups.map((group) => <button key={group.id} type="button" aria-pressed={form.herdGroupId === group.id} className={`min-h-24 rounded-2xl border p-4 text-left transition ${form.herdGroupId === group.id ? "border-lime-700 bg-lime-100 text-lime-950 ring-2 ring-lime-300" : "border-stone-200 bg-stone-50 text-stone-950"}`} onClick={() => update({ herdGroupId: group.id })}><span className="block text-lg font-black">{group.name}</span><span className="mt-1 block text-sm leading-snug text-stone-600">{groupDescriptions[group.name] ?? "Grupo personalizado del rejo."}</span></button>)}</div><Button type="button" className="mt-6 w-full bg-lime-700 text-white" onClick={advance}><ChevronRight size={20} aria-hidden="true" />Continuar</Button></> : step === 1 ? <><div><FieldLabel>Nombre o apodo</FieldLabel><TextInput autoFocus value={form.name} onChange={(event) => update({ name: event.target.value })} placeholder="Ejemplo: Pintada" /></div><div className="mt-6"><FieldLabel>Sexo <span className="normal-case tracking-normal">(opcional)</span></FieldLabel><div className="grid grid-cols-2 gap-3"><Button type="button" aria-pressed={form.sex === "female"} className={form.sex === "female" ? "bg-lime-700 text-white" : "bg-stone-100 text-stone-800"} onClick={() => update({ sex: "female" })}>Hembra</Button><Button type="button" aria-pressed={form.sex === "male"} className={form.sex === "male" ? "bg-lime-700 text-white" : "bg-stone-100 text-stone-800"} onClick={() => update({ sex: "male" })}>Macho</Button></div></div><div className="mt-6 flex gap-3"><Button type="button" className="bg-stone-100 text-stone-800" onClick={() => setStep(0)}>Atrás</Button><Button type="button" className="flex-1 bg-lime-700 text-white" onClick={advance}>Siguiente<ChevronRight size={20} aria-hidden="true" /></Button></div></> : <><p className="text-base text-stone-600">La edad y la foto son opcionales. Lo demás ya está listo.</p><div className="mt-6"><AnimalPhotoPicker value={form.photoUrl} animalName={form.name} disabled={isSaving} onChange={(photoUrl) => update({ photoUrl })} onPreparingChange={setIsPreparingPhoto} /></div><div className="mt-6"><FieldLabel>Edad aproximada en meses <span className="normal-case tracking-normal">(opcional)</span></FieldLabel><TextInput autoFocus inputMode="numeric" min="0" type="number" value={form.approximateAgeMonths} onChange={(event) => update({ approximateAgeMonths: event.target.value })} placeholder="Ejemplo: 36" /></div><div className="mt-6 rounded-2xl bg-stone-100 p-4"><p className="text-sm font-bold uppercase tracking-wide text-stone-500">Se agregará</p><p className="mt-1 text-2xl font-black text-stone-950">{form.name}</p><p className="mt-1 text-base text-stone-600">{selectedGroup?.name} · {form.sex === "female" ? "Hembra" : form.sex === "male" ? "Macho" : "Sexo pendiente"}</p><button type="button" disabled={isSaving} className="mt-3 text-base font-bold text-lime-800 underline disabled:opacity-50" onClick={() => setStep(0)}>Cambiar grupo</button></div><div className="mt-6 flex flex-col-reverse gap-3 sm:flex-row"><Button type="button" disabled={isSaving} className="bg-stone-100 text-stone-800" onClick={() => setStep(1)}>Atrás</Button><Button type="button" disabled={isSaving || isPreparingPhoto} className="flex-1 bg-lime-700 text-white" onClick={() => void save()}>{isSaving ? <><LoaderCircle className="animate-spin" size={20} aria-hidden="true" />Guardando animal…</> : isPreparingPhoto ? <><LoaderCircle className="animate-spin" size={20} aria-hidden="true" />Preparando foto…</> : <><CirclePlus size={20} aria-hidden="true" />Agregar animal</>}</Button></div></>}
+        {step === 0 ? (
+          <>
+            <p className="text-base text-stone-600">Primero organiza dónde verás al animal. Podrás cambiarlo luego desde la ficha.</p>
+            <div className="mt-5 grid gap-3 sm:grid-cols-2">
+              {groups.map((group) => <button key={group.id} type="button" aria-pressed={form.herdGroupId === group.id} className={`min-h-24 rounded-2xl border p-4 text-left transition ${form.herdGroupId === group.id ? "border-lime-700 bg-lime-100 text-lime-950 ring-2 ring-lime-300" : "border-stone-200 bg-stone-50 text-stone-950"}`} onClick={() => update({ herdGroupId: group.id })}><span className="block text-lg font-black">{group.name}</span><span className="mt-1 block text-sm leading-snug text-stone-600">{groupDescriptions[group.name] ?? "Grupo personalizado del rejo."}</span></button>)}
+            </div>
+            <Button type="button" className="mt-6 w-full bg-lime-700 text-white" onClick={advance}><ChevronRight size={20} aria-hidden="true" />Continuar</Button>
+          </>
+        ) : step === 1 ? (
+          <>
+            <div><FieldLabel>Nombre o apodo</FieldLabel><TextInput autoFocus value={form.name} onChange={(event) => update({ name: event.target.value })} placeholder="Ejemplo: Pintada" /></div>
+            <div className="mt-6"><FieldLabel>Sexo <span className="normal-case tracking-normal">(opcional)</span></FieldLabel><div className="grid grid-cols-2 gap-3"><Button type="button" aria-pressed={form.sex === "female"} className={form.sex === "female" ? "bg-lime-700 text-white" : "bg-stone-100 text-stone-800"} onClick={() => update({ sex: "female" })}>Hembra</Button><Button type="button" aria-pressed={form.sex === "male"} className={form.sex === "male" ? "bg-lime-700 text-white" : "bg-stone-100 text-stone-800"} onClick={() => update({ sex: "male" })}>Macho</Button></div></div>
+            <div className="mt-6 flex gap-3"><Button type="button" className="bg-stone-100 text-stone-800" onClick={() => setStep(0)}>Atrás</Button><Button type="button" className="flex-1 bg-lime-700 text-white" onClick={advance}>Siguiente<ChevronRight size={20} aria-hidden="true" /></Button></div>
+          </>
+        ) : (
+          <>
+            <p className="text-base text-stone-600">La foto, la edad y los partos previos son opcionales.</p>
+            <div className="mt-6"><AnimalPhotoPicker value={form.photoUrl} animalName={form.name} disabled={isSaving} onChange={(photoUrl) => update({ photoUrl })} onPreparingChange={setIsPreparingPhoto} /></div>
+            <div className="mt-6"><FieldLabel>Edad aproximada en meses <span className="normal-case tracking-normal">(opcional)</span></FieldLabel><TextInput autoFocus inputMode="numeric" min="0" type="number" value={form.approximateAgeMonths} onChange={(event) => update({ approximateAgeMonths: event.target.value })} placeholder="Ejemplo: 36" /></div>
+            <div className="mt-6"><FieldLabel>Partos antes de registrarla <span className="normal-case tracking-normal">(opcional)</span></FieldLabel><TextInput aria-label="Partos antes de registrarla" inputMode="numeric" min="0" type="number" value={form.previousCalvingCount} onChange={(event) => update({ previousCalvingCount: event.target.value })} placeholder="Ejemplo: 2" /><p className="mt-2 text-sm text-stone-600">No incluye los partos que registrarás después en REJO.</p></div>
+            <div className="mt-6 rounded-2xl bg-stone-100 p-4"><p className="text-sm font-bold uppercase tracking-wide text-stone-500">Se agregará</p><p className="mt-1 text-2xl font-black text-stone-950">{form.name}</p><p className="mt-1 text-base text-stone-600">{selectedGroup?.name} · {form.sex === "female" ? "Hembra" : form.sex === "male" ? "Macho" : "Sexo pendiente"}</p><button type="button" disabled={isSaving} className="mt-3 text-base font-bold text-lime-800 underline disabled:opacity-50" onClick={() => setStep(0)}>Cambiar grupo</button></div>
+            <div className="mt-6 flex flex-col-reverse gap-3 sm:flex-row"><Button type="button" disabled={isSaving} className="bg-stone-100 text-stone-800" onClick={() => setStep(1)}>Atrás</Button><Button type="button" disabled={isSaving || isPreparingPhoto} className="flex-1 bg-lime-700 text-white" onClick={() => void save()}>{isSaving ? <><LoaderCircle className="animate-spin" size={20} aria-hidden="true" />Guardando animal…</> : isPreparingPhoto ? <><LoaderCircle className="animate-spin" size={20} aria-hidden="true" />Preparando foto…</> : <><CirclePlus size={20} aria-hidden="true" />Agregar animal</>}</Button></div>
+          </>
+        )}
       </Card>
     </div>
   </div>;

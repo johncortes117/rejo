@@ -15,7 +15,7 @@ afterEach(async () => {
 });
 
 describe("saveAnimal", () => {
-  it("keeps an optional photo local and queues it for backup", async () => {
+  it("keeps optional photo and historical calving count local and queues them for backup", async () => {
     const database = createTestDatabase();
     const photoUrl = "data:image/jpeg;base64,cGhvdG8=";
 
@@ -23,15 +23,17 @@ describe("saveAnimal", () => {
       farmId: "test-farm",
       userId: "test-user",
       name: "Lucero",
-      photoUrl
+      photoUrl,
+      previousCalvingCount: 3
     }, new Date("2026-07-25T12:00:00.000Z"));
 
     expect(await database.animals.get(animal.id)).toMatchObject({
       name: "Lucero",
-      photoUrl
+      photoUrl,
+      previousCalvingCount: 3
     });
     const operation = (await database.syncQueue.toArray()).find((item) => item.entityId === animal.id);
-    expect(operation?.payload).toMatchObject({ photoUrl });
+    expect(operation?.payload).toMatchObject({ photoUrl, previousCalvingCount: 3 });
   });
 
   it("clears a previously saved photo in the local record and backup payload", async () => {
@@ -54,5 +56,28 @@ describe("saveAnimal", () => {
     expect((await database.animals.get(animal.id))?.photoUrl).toBeUndefined();
     const operations = await database.syncQueue.toArray();
     expect(operations.at(-1)?.payload.photoUrl).toBeNull();
+  });
+
+  it("normalizes and clears a historical calving count", async () => {
+    const database = createTestDatabase();
+    const animal = await saveAnimal(database, {
+      farmId: "test-farm",
+      userId: "test-user",
+      name: "Canela",
+      previousCalvingCount: 2.8
+    });
+
+    expect((await database.animals.get(animal.id))?.previousCalvingCount).toBe(2);
+
+    await saveAnimal(database, {
+      farmId: "test-farm",
+      userId: "test-user",
+      id: animal.id,
+      name: "Canela",
+      previousCalvingCount: null
+    });
+
+    expect((await database.animals.get(animal.id))?.previousCalvingCount).toBeUndefined();
+    expect((await database.syncQueue.toArray()).at(-1)?.payload.previousCalvingCount).toBeNull();
   });
 });
