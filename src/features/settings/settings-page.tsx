@@ -1,6 +1,6 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, type PropsWithChildren } from "react";
 import { useLiveQuery } from "dexie-react-hooks";
-import { Building2, CirclePlus, LogOut, Ruler, Save, Settings, Trash2, Truck } from "lucide-react";
+import { ArrowLeft, Building2, ChevronRight, CirclePlus, LogOut, Ruler, Save, Trash2, Truck, type LucideIcon } from "lucide-react";
 import { Button, Card, FieldLabel, Notice, TextInput } from "@/components/ui";
 import type { Buyer, Farm, FarmSession } from "@/domain/models";
 import type { CalibrationPoint } from "@/domain/tank";
@@ -19,6 +19,8 @@ interface SettingsForm {
   calibration: CalibrationPoint[];
 }
 
+type SettingsSection = "overview" | "farm" | "buyer" | "tank" | "access";
+
 const toSettingsForm = (farm: Farm, buyer: Buyer, calibration: CalibrationPoint[]): SettingsForm => ({
   farmName: farm.name,
   ownerName: farm.ownerName ?? "",
@@ -26,194 +28,63 @@ const toSettingsForm = (farm: Farm, buyer: Buyer, calibration: CalibrationPoint[
   calibration
 });
 
+const SettingsEntryShell = ({ title, icon: Icon, onClose, children }: PropsWithChildren<{ title: string; icon: LucideIcon; onClose: () => void }>) => (
+  <div className="fixed inset-0 z-50 overflow-y-auto bg-stone-50" role="dialog" aria-modal="true" aria-label={title}>
+    <div className="mx-auto min-h-screen max-w-2xl p-4 pb-8 pt-[max(1rem,env(safe-area-inset-top))] sm:p-6">
+      <header className="flex items-center gap-3 border-b border-stone-200 pb-4"><Button type="button" className="min-h-11 shrink-0 bg-white px-3 text-stone-800 ring-1 ring-stone-200" onClick={onClose} aria-label="Volver a configuración"><ArrowLeft size={20} aria-hidden="true" /></Button><div className="flex min-w-0 items-center gap-2"><Icon className="shrink-0 text-lime-800" size={20} aria-hidden="true" /><h1 className="truncate text-2xl font-black tracking-tight text-stone-950">{title}</h1></div></header><div className="pt-6">{children}</div>
+    </div>
+  </div>
+);
+
+const SettingsRow = ({ title, detail, icon: Icon, onClick }: { title: string; detail: string; icon: LucideIcon; onClick: () => void }) => (
+  <button type="button" aria-label={title} className="flex min-h-20 w-full items-center gap-3 px-4 py-3 text-left transition hover:bg-stone-50 active:bg-lime-50 sm:px-5" onClick={onClick}><span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-lime-50 text-lime-800"><Icon size={20} aria-hidden="true" /></span><span className="min-w-0 flex-1"><span className="block font-black text-stone-950">{title}</span><span className="mt-1 block truncate text-sm text-stone-600">{detail}</span></span><ChevronRight className="shrink-0 text-stone-400" size={20} aria-hidden="true" /></button>
+);
+
 export const SettingsPage = ({ session, onSignOut }: SettingsPageProps) => {
   const farm = useLiveQuery(() => db.farms.get(session.farmId), [session.farmId]);
-  const buyer = useLiveQuery(
-    () => db.buyers.filter((item) => item.farmId === session.farmId && !item.deletedAt).first(),
-    [session.farmId]
-  );
-  const calibration = useLiveQuery(
-    async () => {
-      const points = await db.tankCalibrations
-        .filter((point) => point.farmId === session.farmId && !point.deletedAt)
-        .toArray();
-      return points
-        .sort((left, right) => left.mark - right.mark)
-        .map((point) => ({ mark: point.mark, liters: point.liters }));
-    },
-    [session.farmId],
-    []
-  );
+  const buyer = useLiveQuery(() => db.buyers.filter((item) => item.farmId === session.farmId && !item.deletedAt).first(), [session.farmId]);
+  const calibration = useLiveQuery(async () => {
+    const points = await db.tankCalibrations.filter((point) => point.farmId === session.farmId && !point.deletedAt).toArray();
+    return points.sort((left, right) => left.mark - right.mark).map((point) => ({ mark: point.mark, liters: point.liters }));
+  }, [session.farmId], []);
   const [form, setForm] = useState<SettingsForm>();
+  const [section, setSection] = useState<SettingsSection>("overview");
   const [message, setMessage] = useState<string>();
   const [error, setError] = useState<string>();
   const [isSigningOut, setIsSigningOut] = useState(false);
 
   useEffect(() => {
-    if (farm && buyer && form === undefined) {
-      setForm(toSettingsForm(farm, buyer, calibration));
-    }
+    if (farm && buyer && form === undefined) setForm(toSettingsForm(farm, buyer, calibration));
   }, [buyer, calibration, farm, form]);
 
-  if (!farm || !buyer || !form) {
-    return <Notice tone="info">Cargando los ajustes…</Notice>;
-  }
+  if (!farm || !buyer || !form) return <Notice tone="info">Cargando los ajustes…</Notice>;
 
-  const updateCalibration = (index: number, update: Partial<CalibrationPoint>) =>
-    setForm((current) => {
-      if (!current) {
-        return current;
-      }
-
-      return {
-        ...current,
-        calibration: current.calibration.map((point, pointIndex) =>
-          pointIndex === index ? { ...point, ...update } : point
-        )
-      };
-    });
-
-  const save = async () => {
+  const updateCalibration = (index: number, update: Partial<CalibrationPoint>) => setForm((current) => current ? { ...current, calibration: current.calibration.map((point, pointIndex) => pointIndex === index ? { ...point, ...update } : point) } : current);
+  const closeEntry = () => { setSection("overview"); setError(undefined); };
+  const save = async (nextMessage: string) => {
     setMessage(undefined);
     setError(undefined);
-
     try {
-      await saveFarmSettings(db, {
-        farm: { ...farm, name: form.farmName.trim(), ownerName: form.ownerName.trim() || undefined },
-        buyer: { ...buyer, name: form.buyerName.trim() || "Alpina" },
-        calibrationPoints: form.calibration.filter(
-          (point) => Number.isFinite(point.mark) && Number.isFinite(point.liters)
-        ),
-        userId: session.userId
-      });
-      setMessage("Los ajustes quedaron guardados en el celular.");
+      await saveFarmSettings(db, { farm: { ...farm, name: form.farmName.trim(), ownerName: form.ownerName.trim() || undefined }, buyer: { ...buyer, name: form.buyerName.trim() || "Alpina" }, calibrationPoints: form.calibration.filter((point) => Number.isFinite(point.mark) && Number.isFinite(point.liters)), userId: session.userId });
+      setMessage(nextMessage);
+      setSection("overview");
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : "No se pudieron guardar los ajustes.");
     }
   };
-
   const signOut = async () => {
-    if (!onSignOut) {
-      return;
-    }
-
+    if (!onSignOut) return;
     setError(undefined);
     setIsSigningOut(true);
-    try {
-      await onSignOut();
-    } catch (caught) {
-      setError(caught instanceof Error ? caught.message : "No se pudo cerrar la sesión.");
-      setIsSigningOut(false);
-    }
+    try { await onSignOut(); }
+    catch (caught) { setError(caught instanceof Error ? caught.message : "No se pudo cerrar la sesión."); setIsSigningOut(false); }
   };
 
-  return (
-    <div className="space-y-5">
-      <div className="px-1">
-        <p className="flex items-center gap-1.5 text-sm font-bold uppercase tracking-[0.16em] text-lime-800"><Settings size={16} aria-hidden="true" />Configuración</p>
-        <h1 className="mt-1 text-3xl font-black text-stone-950">Configuración de la finca</h1>
-        <p className="mt-1 text-lg text-stone-700">Datos que cambian poco: finca, comprador y tanque.</p>
-      </div>
-
-      {message ? <Notice tone="success">{message}</Notice> : null}
-      {error ? <Notice tone="error">{error}</Notice> : null}
-
-      <Card>
-        <h2 className="flex items-center gap-2 text-2xl font-black"><Building2 size={24} aria-hidden="true" />La finca</h2>
-        <div className="mt-5">
-          <FieldLabel>Nombre de la finca</FieldLabel>
-          <TextInput
-            value={form.farmName}
-            onChange={(event) => setForm({ ...form, farmName: event.target.value })}
-          />
-        </div>
-        <div className="mt-5">
-          <FieldLabel>Nombre de quien la maneja (opcional)</FieldLabel>
-          <TextInput
-            value={form.ownerName}
-            onChange={(event) => setForm({ ...form, ownerName: event.target.value })}
-          />
-        </div>
-      </Card>
-
-      <Card>
-        <h2 className="flex items-center gap-2 text-2xl font-black"><Truck size={24} aria-hidden="true" />Quien compra la leche</h2>
-        <div className="mt-5">
-          <FieldLabel>Nombre</FieldLabel>
-          <TextInput
-            value={form.buyerName}
-            onChange={(event) => setForm({ ...form, buyerName: event.target.value })}
-          />
-        </div>
-      </Card>
-
-      <Card>
-        <h2 className="flex items-center gap-2 text-2xl font-black"><Ruler size={24} aria-hidden="true" />Tabla de aforo del tanque</h2>
-        <p className="mt-1 text-lg text-stone-700">
-          Si todavía no tienes la tabla, no pasa nada: sigue anotando en litros.
-        </p>
-        <Notice tone="info">
-          Para medir con regla: tanque nivelado, sin espuma y con el agitador apagado un minuto antes.
-        </Notice>
-
-        <div className="mt-5 space-y-3">
-          {form.calibration.map((point, index) => (
-            <div className="grid grid-cols-[1fr_1fr_auto] gap-2" key={index}>
-              <TextInput
-                inputMode="decimal"
-                min="0"
-                step="0.1"
-                type="number"
-                value={point.mark}
-                onChange={(event) => updateCalibration(index, { mark: Number(event.target.value) })}
-                aria-label="Marca de regla"
-              />
-              <TextInput
-                inputMode="decimal"
-                min="0"
-                step="0.1"
-                type="number"
-                value={point.liters}
-                onChange={(event) => updateCalibration(index, { liters: Number(event.target.value) })}
-                aria-label="Litros"
-              />
-              <Button
-                type="button"
-                className="bg-red-50 px-3 text-red-900"
-                onClick={() =>
-                  setForm({ ...form, calibration: form.calibration.filter((_, pointIndex) => pointIndex !== index) })
-                }
-              >
-                <Trash2 size={19} aria-hidden="true" />
-                Quitar
-              </Button>
-            </div>
-          ))}
-        </div>
-
-        <Button
-          type="button"
-          className="mt-4 w-full bg-stone-100 text-stone-800"
-          onClick={() => setForm({ ...form, calibration: [...form.calibration, { mark: 0, liters: 0 }] })}
-        >
-          <CirclePlus size={20} aria-hidden="true" />
-          Agregar una marca
-        </Button>
-      </Card>
-
-      <Button type="button" className="w-full bg-lime-700 text-white hover:bg-lime-800" onClick={() => void save()}>
-        <Save size={20} aria-hidden="true" />
-        Guardar ajustes
-      </Button>
-
-      {onSignOut ? <Card>
-        <h2 className="flex items-center gap-2 text-2xl font-black"><LogOut size={24} aria-hidden="true" />Acceso</h2>
-        <p className="mt-2 text-base text-stone-700">Cierra esta cuenta para entrar a otra finca en este teléfono.</p>
-        <Button type="button" className="mt-5 w-full bg-stone-100 text-stone-800" disabled={isSigningOut} onClick={() => void signOut()}>
-          <LogOut size={20} aria-hidden="true" />
-          {isSigningOut ? "Cerrando sesión…" : "Cerrar sesión"}
-        </Button>
-      </Card> : null}
-    </div>
-  );
+  return <div className="space-y-5"><header className="px-1"><h1 className="text-3xl font-black tracking-tight text-stone-950 sm:text-4xl">Configuración</h1></header>{message ? <Notice tone="success">{message}</Notice> : null}{section === "overview" && error ? <Notice tone="error">{error}</Notice> : null}
+    <section aria-labelledby="settings-sections-title"><div className="px-1"><p className="text-sm font-bold uppercase tracking-wide text-stone-500">La finca</p><h2 id="settings-sections-title" className="mt-1 text-xl font-black text-stone-950">Datos y herramientas</h2></div><div className="mt-3 overflow-hidden rounded-3xl border border-stone-200 bg-white shadow-[0_8px_28px_rgba(28,25,23,0.06)]"><SettingsRow title="Datos de la finca" detail={form.ownerName ? `${form.farmName} · ${form.ownerName}` : form.farmName} icon={Building2} onClick={() => setSection("farm")} /><div className="border-t border-stone-100"><SettingsRow title="Comprador de leche" detail={form.buyerName || "Sin comprador definido"} icon={Truck} onClick={() => setSection("buyer")} /></div><div className="border-t border-stone-100"><SettingsRow title="Tabla de aforo" detail={form.calibration.length === 0 ? "Registra en litros hasta tener la tabla" : `${form.calibration.length} ${form.calibration.length === 1 ? "marca guardada" : "marcas guardadas"}`} icon={Ruler} onClick={() => setSection("tank")} /></div>{onSignOut ? <div className="border-t border-stone-100"><SettingsRow title="Acceso" detail="Cerrar sesión en este teléfono" icon={LogOut} onClick={() => setSection("access")} /></div> : null}</div></section>
+    {section === "farm" ? <SettingsEntryShell title="Datos de la finca" icon={Building2} onClose={closeEntry}><div className="space-y-5">{error ? <Notice tone="error">{error}</Notice> : null}<Card><div><FieldLabel>Nombre de la finca</FieldLabel><TextInput autoFocus value={form.farmName} onChange={(event) => setForm({ ...form, farmName: event.target.value })} /></div><div className="mt-5"><FieldLabel>Nombre de quien la maneja <span className="normal-case tracking-normal">(opcional)</span></FieldLabel><TextInput value={form.ownerName} onChange={(event) => setForm({ ...form, ownerName: event.target.value })} /></div><Button type="button" className="mt-6 w-full bg-lime-700 text-white" onClick={() => void save("Los datos de la finca quedaron guardados en el celular.")}><Save size={20} aria-hidden="true" />Guardar datos</Button></Card></div></SettingsEntryShell> : null}
+    {section === "buyer" ? <SettingsEntryShell title="Comprador de leche" icon={Truck} onClose={closeEntry}><div className="space-y-5">{error ? <Notice tone="error">{error}</Notice> : null}<Card><div><FieldLabel>Nombre</FieldLabel><TextInput autoFocus value={form.buyerName} onChange={(event) => setForm({ ...form, buyerName: event.target.value })} placeholder="Ejemplo: Alpina" /></div><Button type="button" className="mt-6 w-full bg-lime-700 text-white" onClick={() => void save("El comprador quedó guardado en el celular.")}><Save size={20} aria-hidden="true" />Guardar comprador</Button></Card></div></SettingsEntryShell> : null}
+    {section === "tank" ? <SettingsEntryShell title="Tabla de aforo" icon={Ruler} onClose={closeEntry}><div className="space-y-5">{error ? <Notice tone="error">{error}</Notice> : null}<Notice tone="info">Si todavía no tienes la tabla, no pasa nada: sigue anotando en litros.</Notice><Card><p className="text-sm leading-snug text-stone-600">Para medir con regla: tanque nivelado, sin espuma y con el agitador apagado un minuto antes.</p><div className="mt-5 space-y-3">{form.calibration.map((point, index) => <div className="grid grid-cols-[1fr_1fr_auto] gap-2" key={index}><TextInput inputMode="decimal" min="0" step="0.1" type="number" value={point.mark} onChange={(event) => updateCalibration(index, { mark: Number(event.target.value) })} aria-label={`Marca de regla ${index + 1}`} /><TextInput inputMode="decimal" min="0" step="0.1" type="number" value={point.liters} onChange={(event) => updateCalibration(index, { liters: Number(event.target.value) })} aria-label={`Litros ${index + 1}`} /><Button type="button" className="bg-red-50 px-3 text-red-900" aria-label={`Quitar marca ${index + 1}`} onClick={() => setForm({ ...form, calibration: form.calibration.filter((_, pointIndex) => pointIndex !== index) })}><Trash2 size={19} aria-hidden="true" /></Button></div>)}</div><Button type="button" className="mt-4 w-full bg-stone-100 text-stone-800" onClick={() => setForm({ ...form, calibration: [...form.calibration, { mark: 0, liters: 0 }] })}><CirclePlus size={20} aria-hidden="true" />Agregar una marca</Button><Button type="button" className="mt-3 w-full bg-lime-700 text-white" onClick={() => void save("La tabla de aforo quedó guardada en el celular.")}><Save size={20} aria-hidden="true" />Guardar tabla</Button></Card></div></SettingsEntryShell> : null}
+    {section === "access" && onSignOut ? <SettingsEntryShell title="Acceso" icon={LogOut} onClose={closeEntry}><div className="space-y-5">{error ? <Notice tone="error">{error}</Notice> : null}<Card><p className="text-lg font-black text-stone-950">Cerrar sesión</p><p className="mt-2 text-base leading-snug text-stone-600">Podrás entrar con otra cuenta en este teléfono. Los registros guardados localmente no se borran.</p><Button type="button" className="mt-6 w-full bg-stone-900 text-white" disabled={isSigningOut} onClick={() => void signOut()}><LogOut size={20} aria-hidden="true" />{isSigningOut ? "Cerrando sesión…" : "Cerrar sesión"}</Button></Card></div></SettingsEntryShell> : null}
+  </div>;
 };

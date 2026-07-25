@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useLiveQuery } from "dexie-react-hooks";
 import { Archive, ArrowDown, ArrowUp, Beef, Check, CirclePlus, ClipboardPenLine, Clock3, FolderOpen, HeartPulse, Pencil, Save, ShieldPlus, SlidersHorizontal, Stethoscope, Syringe, X } from "lucide-react";
-import { Button, Card, FieldLabel, Notice, TextInput } from "@/components/ui";
+import { Button, Card, FieldLabel, Notice, SegmentedControl, TextInput } from "@/components/ui";
 import type { Animal, AnimalSex, FarmSession, HerdGroup } from "@/domain/models";
 import { db } from "@/db/rejo-db";
 import { nowInFarmTimezone } from "@/domain/time";
@@ -60,9 +60,8 @@ const FullScreenHeader = ({
   onClose: () => void;
 }) => (
   <header className="sticky top-0 z-10 flex items-center gap-4 border-b border-stone-200 bg-white/95 px-4 py-3 backdrop-blur sm:px-6">
-    <Button type="button" className="shrink-0 bg-stone-100 px-4 text-stone-800" onClick={onClose} aria-label="Cerrar ficha">
+    <Button type="button" className="min-h-11 shrink-0 bg-stone-100 px-3 text-stone-800" onClick={onClose} aria-label="Cerrar ficha">
       <X size={19} aria-hidden="true" />
-      Cerrar
     </Button>
     <div className="min-w-0">
       <p className="text-xs font-bold uppercase tracking-[0.16em] text-lime-800">{eyebrow}</p>
@@ -300,17 +299,17 @@ export const AnimalEditor = ({ animal, groups, defaultGroupId, session, onClose,
   </div>;
 };
 
-export const AnimalDetail = ({ animal, groups, session, initialSection = "general", onClose, onEdit }: { animal: Animal; groups: HerdGroup[]; session: FarmSession; initialSection?: DetailSection; onClose: () => void; onEdit: () => void }) => {
+export const AnimalDetail = ({ animal, groups, session, initialSection = "general", onClose, onEdit, onArchive }: { animal: Animal; groups: HerdGroup[]; session: FarmSession; initialSection?: DetailSection; onClose: () => void; onEdit: () => void; onArchive?: () => void }) => {
   const [section, setSection] = useState<DetailSection>(initialSection);
   const sexLabel = animal.sex === "female" ? "Hembra" : animal.sex === "male" ? "Macho" : "Sexo pendiente";
   const groupName = groups.find((group) => group.id === animal.herdGroupId)?.name ?? groups[0]?.name ?? "Sin grupo";
   return <div className={screenShell} role="dialog" aria-modal="true" aria-label={`Ficha de ${animal.name}`}>
-    <FullScreenHeader eyebrow="Ficha de la vaca" title={animal.name} onClose={onClose} />
-    <main className="mx-auto max-w-2xl p-4 pb-10 pt-6 sm:p-6">
-      <section className="rounded-3xl bg-stone-950 p-5 text-white sm:p-6"><p className="text-base text-stone-300">{sexLabel}{animal.birthDateEstimated ? " · edad estimada" : ""}</p><p className="mt-1 text-lg font-bold text-lime-200">Grupo: {groupName}</p><Button type="button" className="mt-4 bg-white text-stone-950 hover:bg-stone-100" onClick={onEdit}><Pencil size={19} aria-hidden="true" />Editar datos</Button></section>
-      <div className="mt-5 grid grid-cols-3 rounded-2xl bg-stone-200 p-1" role="tablist" aria-label="Secciones de la ficha"><button type="button" role="tab" aria-selected={section === "general"} className={`min-h-12 rounded-xl px-2 text-sm font-bold ${section === "general" ? "bg-white text-lime-950 shadow-sm" : "text-stone-600"}`} onClick={() => setSection("general")}>General</button><button type="button" role="tab" aria-selected={section === "reproduction"} className={`min-h-12 rounded-xl px-2 text-sm font-bold ${section === "reproduction" ? "bg-white text-lime-950 shadow-sm" : "text-stone-600"}`} onClick={() => setSection("reproduction")}>Reproducción</button><button type="button" role="tab" aria-selected={section === "health"} className={`min-h-12 rounded-xl px-2 text-sm font-bold ${section === "health" ? "bg-white text-lime-950 shadow-sm" : "text-stone-600"}`} onClick={() => setSection("health")}>Sanidad</button></div>
-      <div className="mt-5">{section === "general" ? <Card><p className="text-sm font-bold uppercase tracking-wide text-stone-500">Información general</p><h2 className="mt-1 text-2xl font-black text-stone-950">{animal.name}</h2><dl className="mt-5 space-y-3 text-base"><div className="flex justify-between gap-4"><dt className="text-stone-600">Grupo</dt><dd className="font-bold text-stone-950">{groupName}</dd></div><div className="flex justify-between gap-4"><dt className="text-stone-600">Sexo</dt><dd className="font-bold text-stone-950">{sexLabel}</dd></div><div className="flex justify-between gap-4"><dt className="text-stone-600">Edad</dt><dd className="font-bold text-stone-950">{animal.birthDateEstimated ? "Estimación guardada" : "Sin estimación"}</dd></div></dl></Card> : section === "reproduction" ? <ReproductionPanel animal={animal} session={session} /> : <HealthPanel animal={animal} session={session} />}</div>
-    </main>
+    <FullScreenHeader eyebrow={groupName} title={animal.name} onClose={onClose} />
+    <div className="mx-auto max-w-2xl p-4 pb-10 pt-6 sm:p-6">
+      <section className="flex items-center gap-3 rounded-3xl border border-stone-200 bg-white p-4 shadow-[0_8px_28px_rgba(28,25,23,0.06)]"><span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-lime-100 text-xl font-black text-lime-950">{animal.name.slice(0, 1).toUpperCase()}</span><div className="min-w-0 flex-1"><p className="font-black text-stone-950">{sexLabel}{animal.birthDateEstimated ? " · edad estimada" : ""}</p><p className="mt-1 text-sm text-stone-600">Grupo: {groupName}</p></div><Button type="button" className="min-h-11 shrink-0 bg-stone-100 px-3 text-stone-800" onClick={onEdit} aria-label={`Editar datos de ${animal.name}`}><Pencil size={19} aria-hidden="true" /><span className="hidden sm:inline">Editar</span></Button></section>
+      <div className="mt-5"><SegmentedControl ariaLabel="Secciones de la ficha" value={section} onChange={setSection} options={[{ id: "general", label: "General" }, { id: "reproduction", label: "Reproducción" }, { id: "health", label: "Sanidad" }]} /></div>
+      <div className="mt-5">{section === "general" ? <Card><p className="text-sm font-bold uppercase tracking-wide text-stone-500">Datos generales</p><dl className="mt-4 space-y-3 text-base"><div className="flex justify-between gap-4"><dt className="text-stone-600">Grupo</dt><dd className="font-bold text-stone-950">{groupName}</dd></div><div className="flex justify-between gap-4"><dt className="text-stone-600">Sexo</dt><dd className="font-bold text-stone-950">{sexLabel}</dd></div><div className="flex justify-between gap-4"><dt className="text-stone-600">Edad</dt><dd className="font-bold text-stone-950">{animal.birthDateEstimated ? "Estimación guardada" : "Sin estimación"}</dd></div></dl>{onArchive ? <Button type="button" className="mt-6 w-full bg-red-50 text-red-900 ring-1 ring-red-100" onClick={onArchive}><Archive size={20} aria-hidden="true" />Sacar de la lista</Button> : null}</Card> : section === "reproduction" ? <ReproductionPanel animal={animal} session={session} /> : <HealthPanel animal={animal} session={session} />}</div>
+    </div>
   </div>;
 };
 

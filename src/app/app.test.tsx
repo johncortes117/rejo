@@ -118,7 +118,7 @@ describe("Phase 0 daily flow", () => {
     await screen.findByRole("heading", { name: "La finca, al día." });
     fireEvent.click(screen.getByRole("button", { name: "Abrir potreros" }));
 
-    await screen.findByRole("heading", { name: "Potreros y rotación" });
+    await screen.findByRole("heading", { name: "Potreros" });
     fireEvent.click(screen.getByRole("button", { name: "Volver al inicio" }));
     await screen.findByRole("heading", { name: "La finca, al día." });
   });
@@ -212,6 +212,43 @@ describe("Phase 0 daily flow", () => {
     await screen.findByRole("heading", { name: "Sanidad" });
   });
 
+  it("organizes animals by group and finds an animal across the rejo", async () => {
+    Object.defineProperty(navigator, "onLine", { configurable: true, value: false });
+    render(<App />);
+
+    fireEvent.change(screen.getByPlaceholderText("Ejemplo: Finca El Capulí"), {
+      target: { value: "Finca La Pintada" }
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Empezar" }));
+
+    await screen.findByRole("heading", { name: "La finca, al día." });
+    fireEvent.click(screen.getByRole("button", { name: "Rejo" }));
+    await screen.findByRole("heading", { name: "El rejo" });
+    fireEvent.click(screen.getByRole("button", { name: /^Animales\b/ }));
+    await screen.findByRole("heading", { name: "Animales" });
+    await waitFor(async () => expect(await db.herdGroups.count()).toBe(4));
+
+    const [farm] = await db.farms.toArray();
+    const groups = await db.herdGroups.toArray();
+    const milkingGroup = groups.find((group) => group.name === "En ordeño");
+    const heiferGroup = groups.find((group) => group.name === "Vaconas");
+    const timestamp = "2026-07-24T12:00:00.000Z";
+    await db.animals.bulkPut([
+      { id: "animal-lucero", farmId: farm.id, name: "Lucero", sex: "female", birthDateEstimated: true, herdGroupId: milkingGroup?.id, status: "active", createdAt: timestamp, updatedAt: timestamp, createdBy: farm.createdBy },
+      { id: "animal-nube", farmId: farm.id, name: "Nube", sex: "female", birthDateEstimated: true, herdGroupId: heiferGroup?.id, status: "active", createdAt: timestamp, updatedAt: timestamp, createdBy: farm.createdBy }
+    ]);
+
+    await screen.findByRole("button", { name: /En ordeño 1/ });
+    fireEvent.click(screen.getByRole("button", { name: /Vaconas 1/ }));
+    await screen.findByText("Nube");
+    expect(screen.queryByText("Lucero")).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "Buscar animal" }));
+    fireEvent.change(screen.getByRole("textbox", { name: "Buscar por nombre" }), { target: { value: "Lucero" } });
+    await screen.findByText("Lucero");
+    expect(screen.getByText("Hembra · En ordeño")).toBeInTheDocument();
+  });
+
   it("puts milk withdrawal before health plan tasks and resolves a task in a focused view", async () => {
     Object.defineProperty(navigator, "onLine", { configurable: true, value: false });
     render(<App />);
@@ -240,7 +277,7 @@ describe("Phase 0 daily flow", () => {
     expect(screen.queryByText("Revisa primero la leche en retiro y las tareas pendientes; el tratamiento de cada vaca sigue en su ficha.")).not.toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Abrir ficha de Luna: no entregar leche" })).toBeInTheDocument();
 
-    fireEvent.click(screen.getByRole("button", { name: "Gestionar Curada" }));
+    fireEvent.click(await screen.findByRole("button", { name: "Gestionar Curada" }));
     await screen.findByRole("dialog", { name: "Gestionar Curada" });
     expect(screen.getByRole("heading", { name: "¿Qué pasó con esta tarea?" })).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "Posponer 7 días" }));
@@ -302,7 +339,7 @@ describe("Phase 0 daily flow", () => {
     await screen.findByRole("heading", { name: "Más" });
     fireEvent.click(screen.getByRole("button", { name: /Configuración/ }));
 
-    await screen.findByRole("heading", { name: "Configuración de la finca" });
+    await screen.findByRole("heading", { name: "Configuración" });
     expect(screen.queryByText("Plan sanitario mínimo")).not.toBeInTheDocument();
   });
 
@@ -368,7 +405,7 @@ describe("Phase 0 daily flow", () => {
     fireEvent.click(screen.getByRole("button", { name: "Más" }));
     await screen.findByRole("heading", { name: "Más" });
     fireEvent.click(screen.getByRole("button", { name: /Potreros/ }));
-    await screen.findByRole("heading", { name: "Potreros y rotación" });
+    await screen.findByRole("heading", { name: "Potreros" });
     expect(screen.queryByRole("heading", { name: "Mover el rejo" })).not.toBeInTheDocument();
 
     fireEvent.click(screen.getByRole("button", { name: "Mover el rejo" }));
