@@ -204,6 +204,9 @@ describe("Phase 0 daily flow", () => {
     fireEvent.click(screen.getByRole("button", { name: "Finanzas" }));
 
     await screen.findByRole("heading", { name: "Finanzas" });
+    expect(screen.getByRole("heading", { name: "Caja de la finca" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "30 días" })).toHaveAttribute("aria-pressed", "true");
+    expect(screen.getByText("Resultado de caja")).toBeInTheDocument();
     expect(screen.queryByRole("heading", { name: "Registrar liquidación" })).not.toBeInTheDocument();
 
     fireEvent.click(screen.getByRole("button", { name: "Liquidaciones" }));
