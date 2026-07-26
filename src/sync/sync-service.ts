@@ -43,6 +43,7 @@ const camelToSnake: Record<string, string> = {
   brucellosisFree: "brucellosis_free",
   bppCertified: "bpp_certified",
   paymentFrequency: "payment_frequency",
+  buyerId: "buyer_id",
   agreedPricePerLiter: "agreed_price_per_liter",
   paysQualityBonus: "pays_quality_bonus",
   unitLabel: "unit_label",

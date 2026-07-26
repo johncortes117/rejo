@@ -102,4 +102,39 @@ describe("syncPendingOperations", () => {
       lastError: "This account cannot access this farm."
     });
   });
+
+  it("converts settlement buyerId to the buyer_id column before backup", async () => {
+    await database.syncQueue.clear();
+    await database.syncQueue.put(
+      queueUpsert(
+        farmId,
+        "settlements",
+        "019f9af2-76ac-7d90-a164-e3ad73ee02ff",
+        {
+          id: "019f9af2-76ac-7d90-a164-e3ad73ee02ff",
+          farmId,
+          buyerId,
+          periodStart: "2026-07-01",
+          periodEnd: "2026-07-15",
+          litersPaid: 1000,
+          pricePerLiterPaid: 0.45,
+          totalPaid: 450,
+          reconciled: true,
+          createdAt: timestamp,
+          updatedAt: timestamp,
+          createdBy: "019f9af1-76ac-7d90-a164-e3ad73ee02ff"
+        },
+        timestamp
+      )
+    );
+
+    await expect(syncPendingOperations(database, farmId)).resolves.toEqual({
+      state: "synced",
+      processed: 1
+    });
+
+    expect(fromMock).toHaveBeenCalledWith("settlements");
+    expect(upsertMock).toHaveBeenCalledWith(expect.objectContaining({ buyer_id: buyerId }), { onConflict: "id" });
+    expect(upsertMock).toHaveBeenCalledWith(expect.not.objectContaining({ buyerId: expect.anything() }), { onConflict: "id" });
+  });
 });
