@@ -3,11 +3,12 @@ import { useLiveQuery } from "dexie-react-hooks";
 import { Archive, ArrowDown, ArrowLeft, ArrowUp, Beef, Check, CirclePlus, ClipboardPenLine, Clock3, FolderOpen, HeartPulse, LoaderCircle, Milk, Pencil, Plus, Save, ShieldPlus, SlidersHorizontal, Stethoscope, Syringe, X } from "lucide-react";
 import { Button, Card, FieldLabel, Notice, SegmentedControl, TextInput } from "@/components/ui";
 import { TrendSparkline } from "@/components/trend-sparkline";
-import type { Animal, AnimalSex, FarmSession, HerdGroup } from "@/domain/models";
+import type { Animal, AnimalPhotoCrop, AnimalSex, FarmSession, HerdGroup } from "@/domain/models";
 import { db } from "@/db/rejo-db";
 import { nowInFarmTimezone } from "@/domain/time";
 import { archiveAnimal, saveAnimal } from "@/features/animals/animals";
 import { AnimalPhotoPicker } from "@/features/animals/animal-photo";
+import { AnimalPhotoFrame } from "@/features/animals/animal-photo-frame";
 import { createHerdGroup, ensureDefaultHerdGroups, renameHerdGroup, reorderHerdGroup } from "@/features/animals/herd-groups";
 import { recordCalving, recordDryOff, recordHeat, recordPregnancyCheck, recordService } from "@/features/reproduction/events";
 import { computeReproductiveState } from "@/features/reproduction/reproductive-state";
@@ -28,6 +29,7 @@ interface AnimalFormState {
   approximateAgeMonths: string;
   previousCalvingCount: string;
   photoUrl?: string;
+  photoCrop?: AnimalPhotoCrop;
   herdGroupId?: string;
 }
 
@@ -42,6 +44,7 @@ const toFormState = (animal: Animal): AnimalFormState => ({
   approximateAgeMonths: "",
   previousCalvingCount: animal.previousCalvingCount?.toString() ?? "",
   photoUrl: animal.photoUrl,
+  photoCrop: animal.photoCrop,
   herdGroupId: animal.herdGroupId
 });
 
@@ -56,6 +59,13 @@ const reproductiveLabel = (status: ReturnType<typeof computeReproductiveState>["
 })[status];
 
 const screenShell = "fixed inset-0 z-[100] h-[100dvh] overflow-y-auto overscroll-contain bg-stone-100";
+
+const AnimalPhotoViewer = ({ animal, onClose }: { animal: Animal; onClose: () => void }) => (
+  <div className="fixed inset-0 z-[110] flex h-[100dvh] items-center justify-center bg-black" role="dialog" aria-modal="true" aria-label={`Foto completa de ${animal.name}`}>
+    <img className="max-h-full max-w-full object-contain" src={animal.photoUrl} alt={`Foto completa de ${animal.name}`} />
+    <Button type="button" className="absolute right-4 top-[max(1rem,env(safe-area-inset-top))] min-h-11 bg-white/95 px-3 text-stone-900 shadow-lg hover:bg-white" onClick={onClose} aria-label="Cerrar foto completa"><X size={20} aria-hidden="true" /></Button>
+  </div>
+);
 
 const formatFarmDate = (date: string): string => new Intl.DateTimeFormat("es-EC", {
   day: "numeric",
@@ -410,7 +420,7 @@ export const AnimalEditor = ({ animal, groups, defaultGroupId, session, onClose,
     setError(undefined);
     let didSave = false;
     try {
-      await saveAnimal(db, { farmId: session.farmId, userId: session.userId, id: form.id, name: form.name, sex: form.sex || undefined, approximateAgeMonths: form.approximateAgeMonths ? Number(form.approximateAgeMonths) : undefined, previousCalvingCount: form.previousCalvingCount ? Number(form.previousCalvingCount) : animal?.previousCalvingCount !== undefined ? null : undefined, photoUrl: form.photoUrl ?? (animal?.photoUrl ? null : undefined), herdGroupId: form.herdGroupId });
+      await saveAnimal(db, { farmId: session.farmId, userId: session.userId, id: form.id, name: form.name, sex: form.sex || undefined, approximateAgeMonths: form.approximateAgeMonths ? Number(form.approximateAgeMonths) : undefined, previousCalvingCount: form.previousCalvingCount ? Number(form.previousCalvingCount) : animal?.previousCalvingCount !== undefined ? null : undefined, photoUrl: form.photoUrl ?? (animal?.photoUrl ? null : undefined), photoCrop: form.photoCrop ?? (animal?.photoUrl ? null : undefined), herdGroupId: form.herdGroupId });
       didSave = true;
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : "No se pudo guardar la vaca.");
@@ -436,7 +446,7 @@ export const AnimalEditor = ({ animal, groups, defaultGroupId, session, onClose,
         ) : (
           <>
             <p className="text-base text-stone-600">La foto, la edad, los partos previos y el grupo son opcionales.</p>
-            <div className="mt-6"><AnimalPhotoPicker value={form.photoUrl} animalName={form.name} disabled={isSaving} onChange={(photoUrl) => updateForm({ photoUrl })} onPreparingChange={setIsPreparingPhoto} /></div>
+            <div className="mt-6"><AnimalPhotoPicker value={form.photoUrl} crop={form.photoCrop} animalName={form.name} disabled={isSaving} onChange={(photoUrl, photoCrop) => updateForm({ photoUrl, photoCrop })} onPreparingChange={setIsPreparingPhoto} /></div>
             <div className="mt-6"><FieldLabel>Edad aproximada en meses <span className="normal-case tracking-normal">(opcional)</span></FieldLabel><TextInput autoFocus disabled={isSaving} inputMode="numeric" min="0" type="number" value={form.approximateAgeMonths} onChange={(event) => updateForm({ approximateAgeMonths: event.target.value })} placeholder="Ejemplo: 36" /></div>
             <div className="mt-6"><FieldLabel>Partos antes de registrarla <span className="normal-case tracking-normal">(opcional)</span></FieldLabel><TextInput aria-label="Partos antes de registrarla" disabled={isSaving} inputMode="numeric" min="0" type="number" value={form.previousCalvingCount} onChange={(event) => updateForm({ previousCalvingCount: event.target.value })} placeholder="Ejemplo: 2" /><p className="mt-2 text-sm text-stone-600">No incluye los partos que registrarás después en REJO.</p></div>
             <div className="mt-6"><FieldLabel>Grupo del rejo</FieldLabel><select disabled={isSaving} className="min-h-12 w-full rounded-2xl border border-stone-300 bg-stone-50 px-4 text-lg disabled:cursor-not-allowed disabled:opacity-50" value={form.herdGroupId ?? ""} onChange={(event) => updateForm({ herdGroupId: event.target.value || undefined })}>{groups.map((group) => <option key={group.id} value={group.id}>{group.name}</option>)}</select></div>
@@ -486,12 +496,13 @@ const GeneralPanel = ({ animal, groupName, onArchive }: { animal: Animal; groupN
 
 export const AnimalDetail = ({ animal, groups, session, initialSection = "general", onClose, onEdit, onArchive }: { animal: Animal; groups: HerdGroup[]; session: FarmSession; initialSection?: DetailSection; onClose: () => void; onEdit: () => void; onArchive?: () => void }) => {
   const [section, setSection] = useState<DetailSection>(initialSection);
+  const [isPhotoViewerOpen, setIsPhotoViewerOpen] = useState(false);
   const groupName = groups.find((group) => group.id === animal.herdGroupId)?.name ?? groups[0]?.name ?? "Sin grupo";
   useDetailScrollLock();
 
   return <div className={`${screenShell} isolate`} role="dialog" aria-modal="true" aria-label={`Ficha de ${animal.name}`}>
     <section data-testid="animal-profile-hero" className="mx-auto max-w-2xl bg-lime-950">
-      {animal.photoUrl ? <img className="block h-auto w-full" src={animal.photoUrl} alt={`Foto de ${animal.name}`} /> : <div className="flex h-72 items-center justify-center bg-[radial-gradient(circle_at_72%_24%,#84cc16,transparent_36%),linear-gradient(145deg,#365314,#14532d)] text-lime-100"><Beef size={96} strokeWidth={1.25} aria-hidden="true" /></div>}
+      {animal.photoUrl ? <button type="button" className="block w-full text-left" onClick={() => setIsPhotoViewerOpen(true)} aria-label={`Ver foto completa de ${animal.name}`}><AnimalPhotoFrame name={animal.name} photoUrl={animal.photoUrl} crop={animal.photoCrop} className="aspect-[4/3] w-full" /></button> : <div className="flex h-72 items-center justify-center bg-[radial-gradient(circle_at_72%_24%,#84cc16,transparent_36%),linear-gradient(145deg,#365314,#14532d)] text-lime-100"><Beef size={96} strokeWidth={1.25} aria-hidden="true" /></div>}
     </section>
 
     <div className="mx-auto max-w-2xl p-4 pb-10 sm:p-6">
@@ -505,6 +516,7 @@ export const AnimalDetail = ({ animal, groups, session, initialSection = "genera
       </div>
       <div className="pt-5">{section === "general" ? <GeneralPanel animal={animal} groupName={groupName} onArchive={onArchive} /> : section === "reproduction" ? <ReproductionPanel animal={animal} session={session} /> : <HealthPanel animal={animal} session={session} />}</div>
     </div>
+    {isPhotoViewerOpen && animal.photoUrl ? <AnimalPhotoViewer animal={animal} onClose={() => setIsPhotoViewerOpen(false)} /> : null}
   </div>;
 };
 

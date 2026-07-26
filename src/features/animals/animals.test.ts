@@ -24,16 +24,18 @@ describe("saveAnimal", () => {
       userId: "test-user",
       name: "Lucero",
       photoUrl,
+      photoCrop: { x: 38, y: 62, zoom: 1.25 },
       previousCalvingCount: 3
     }, new Date("2026-07-25T12:00:00.000Z"));
 
     expect(await database.animals.get(animal.id)).toMatchObject({
       name: "Lucero",
       photoUrl,
+      photoCrop: { x: 38, y: 62, zoom: 1.25 },
       previousCalvingCount: 3
     });
     const operation = (await database.syncQueue.toArray()).find((item) => item.entityId === animal.id);
-    expect(operation?.payload).toMatchObject({ photoUrl, previousCalvingCount: 3 });
+    expect(operation?.payload).toMatchObject({ photoUrl, photoCrop: { x: 38, y: 62, zoom: 1.25 }, previousCalvingCount: 3 });
   });
 
   it("clears a previously saved photo in the local record and backup payload", async () => {
@@ -55,7 +57,8 @@ describe("saveAnimal", () => {
 
     expect((await database.animals.get(animal.id))?.photoUrl).toBeUndefined();
     const operations = await database.syncQueue.toArray();
-    expect(operations.at(-1)?.payload.photoUrl).toBeNull();
+    const clearPhoto = operations.find((operation) => operation.entityId === animal.id && operation.payload.photoUrl === null);
+    expect(clearPhoto?.payload.photoCrop).toBeNull();
   });
 
   it("normalizes and clears a historical calving count", async () => {

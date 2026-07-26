@@ -40,12 +40,19 @@ export interface TankCalibration extends RecordMeta {
 
 export type AnimalSex = "female" | "male";
 
+export interface AnimalPhotoCrop {
+  x: number;
+  y: number;
+  zoom: number;
+}
+
 export interface Animal extends RecordMeta {
   name: string;
   sex?: AnimalSex;
   birthDate?: string;
   birthDateEstimated: boolean;
   photoUrl?: string;
+  photoCrop?: AnimalPhotoCrop;
   previousCalvingCount?: number;
   motherId?: EntityId;
   herdGroupId?: EntityId;

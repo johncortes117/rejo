@@ -52,8 +52,12 @@ describe("AnimalDetail", () => {
     expect(hero).not.toHaveClass("h-52");
     expect(hero).not.toHaveTextContent("Bella");
     const animalPhoto = screen.getByRole("img", { name: "Foto de Bella" });
-    expect(animalPhoto).toHaveClass("h-auto");
-    expect(animalPhoto).not.toHaveClass("object-cover");
+    expect(animalPhoto).toHaveClass("object-cover");
+    fireEvent.click(screen.getByRole("button", { name: "Ver foto completa de Bella" }));
+    expect(await screen.findByRole("dialog", { name: "Foto completa de Bella" })).toBeInTheDocument();
+    expect(screen.getByRole("img", { name: "Foto completa de Bella" })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Cerrar foto completa" }));
+    expect(screen.queryByRole("dialog", { name: "Foto completa de Bella" })).not.toBeInTheDocument();
     expect(hero).not.toHaveTextContent("En ordeño");
     expect(hero).not.toHaveTextContent("Hembra");
     expect(screen.getByRole("dialog")).toHaveClass("z-[100]");

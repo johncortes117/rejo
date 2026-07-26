@@ -137,4 +137,36 @@ describe("syncPendingOperations", () => {
     expect(upsertMock).toHaveBeenCalledWith(expect.objectContaining({ buyer_id: buyerId }), { onConflict: "id" });
     expect(upsertMock).toHaveBeenCalledWith(expect.not.objectContaining({ buyerId: expect.anything() }), { onConflict: "id" });
   });
+
+  it("backs up an animal photo crop using the photo_crop column", async () => {
+    await database.syncQueue.clear();
+    await database.syncQueue.put(
+      queueUpsert(
+        farmId,
+        "animals",
+        "019f9af3-76ac-7d90-a164-e3ad73ee02ff",
+        {
+          id: "019f9af3-76ac-7d90-a164-e3ad73ee02ff",
+          farmId,
+          name: "Lucera",
+          birthDateEstimated: false,
+          photoUrl: "data:image/jpeg;base64,cGhvdG8=",
+          photoCrop: { x: 45, y: 60, zoom: 1.2 },
+          status: "active",
+          createdAt: timestamp,
+          updatedAt: timestamp,
+          createdBy: "019f9af1-76ac-7d90-a164-e3ad73ee02ff"
+        },
+        timestamp
+      )
+    );
+
+    await expect(syncPendingOperations(database, farmId)).resolves.toEqual({
+      state: "synced",
+      processed: 1
+    });
+
+    expect(fromMock).toHaveBeenCalledWith("animals");
+    expect(upsertMock).toHaveBeenCalledWith(expect.objectContaining({ photo_crop: { x: 45, y: 60, zoom: 1.2 } }), { onConflict: "id" });
+  });
 });

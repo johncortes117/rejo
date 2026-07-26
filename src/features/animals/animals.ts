@@ -1,5 +1,5 @@
 import { createUuidV7 } from "@/domain/ids";
-import type { Animal, AnimalSex } from "@/domain/models";
+import type { Animal, AnimalPhotoCrop, AnimalSex } from "@/domain/models";
 import { queueSoftDelete, queueUpsert } from "@/db/outbox";
 import type { RejoDb } from "@/db/rejo-db";
 
@@ -14,6 +14,7 @@ export interface SaveAnimalInput {
   approximateAgeMonths?: number;
   id?: string;
   photoUrl?: string | null;
+  photoCrop?: AnimalPhotoCrop | null;
   previousCalvingCount?: number | null;
   herdGroupId?: string;
 }
@@ -55,6 +56,7 @@ export const saveAnimal = async (
       approximateAge === undefined ? existing?.birthDate : estimateBirthDate(approximateAge, now),
     birthDateEstimated: approximateAge !== undefined || existing?.birthDateEstimated || false,
     photoUrl: input.photoUrl === null ? undefined : input.photoUrl ?? existing?.photoUrl,
+    photoCrop: input.photoUrl === null || input.photoCrop === null ? undefined : input.photoCrop ?? existing?.photoCrop,
     previousCalvingCount,
     herdGroupId: input.herdGroupId ?? existing?.herdGroupId,
     status: existing?.status ?? "active",
@@ -73,6 +75,7 @@ export const saveAnimal = async (
         toPayload({
           ...animal,
           ...(input.photoUrl === null ? { photoUrl: null } : {}),
+          ...(input.photoUrl === null || input.photoCrop === null ? { photoCrop: null } : {}),
           ...(input.previousCalvingCount === null ? { previousCalvingCount: null } : {})
         }),
         timestamp

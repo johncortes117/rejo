@@ -3,7 +3,7 @@ import { useLiveQuery } from "dexie-react-hooks";
 import { ArrowDown, ArrowLeft, ArrowUp, ChevronRight, CirclePlus, ClipboardPenLine, LoaderCircle, Plus, Search, SlidersHorizontal, X } from "lucide-react";
 import { Button, Card, FieldLabel, Notice, TextInput } from "@/components/ui";
 import { db } from "@/db/rejo-db";
-import type { Animal, AnimalSex, FarmSession, HerdGroup } from "@/domain/models";
+import type { Animal, AnimalPhotoCrop, AnimalSex, FarmSession, HerdGroup } from "@/domain/models";
 import { archiveAnimal, saveAnimal } from "@/features/animals/animals";
 import { AnimalAvatar, AnimalPhotoPicker } from "@/features/animals/animal-photo";
 import { AnimalDetail, AnimalEditor } from "@/features/animals/animals-page";
@@ -20,6 +20,7 @@ interface NewAnimalForm {
   approximateAgeMonths: string;
   previousCalvingCount: string;
   photoUrl?: string;
+  photoCrop?: AnimalPhotoCrop;
   herdGroupId?: string;
 }
 
@@ -147,7 +148,7 @@ export const NewAnimalWizard = ({ groups, session, onClose, onSaved }: { groups:
     setError(undefined);
     let didSave = false;
     try {
-      await saveAnimal(db, { farmId: session.farmId, userId: session.userId, name: form.name, sex: form.sex || undefined, approximateAgeMonths: form.approximateAgeMonths ? Number(form.approximateAgeMonths) : undefined, previousCalvingCount: form.previousCalvingCount ? Number(form.previousCalvingCount) : undefined, photoUrl: form.photoUrl, herdGroupId: form.herdGroupId });
+      await saveAnimal(db, { farmId: session.farmId, userId: session.userId, name: form.name, sex: form.sex || undefined, approximateAgeMonths: form.approximateAgeMonths ? Number(form.approximateAgeMonths) : undefined, previousCalvingCount: form.previousCalvingCount ? Number(form.previousCalvingCount) : undefined, photoUrl: form.photoUrl, photoCrop: form.photoCrop, herdGroupId: form.herdGroupId });
       didSave = true;
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : "No se pudo guardar el animal.");
@@ -184,7 +185,7 @@ export const NewAnimalWizard = ({ groups, session, onClose, onSaved }: { groups:
         ) : (
           <>
             <p className="text-base text-stone-600">La foto, la edad y los partos previos son opcionales.</p>
-            <div className="mt-6"><AnimalPhotoPicker value={form.photoUrl} animalName={form.name} disabled={isSaving} onChange={(photoUrl) => update({ photoUrl })} onPreparingChange={setIsPreparingPhoto} /></div>
+            <div className="mt-6"><AnimalPhotoPicker value={form.photoUrl} crop={form.photoCrop} animalName={form.name} disabled={isSaving} onChange={(photoUrl, photoCrop) => update({ photoUrl, photoCrop })} onPreparingChange={setIsPreparingPhoto} /></div>
             <div className="mt-6"><FieldLabel>Edad aproximada en meses <span className="normal-case tracking-normal">(opcional)</span></FieldLabel><TextInput autoFocus inputMode="numeric" min="0" type="number" value={form.approximateAgeMonths} onChange={(event) => update({ approximateAgeMonths: event.target.value })} placeholder="Ejemplo: 36" /></div>
             <div className="mt-6"><FieldLabel>Partos antes de registrarla <span className="normal-case tracking-normal">(opcional)</span></FieldLabel><TextInput aria-label="Partos antes de registrarla" inputMode="numeric" min="0" type="number" value={form.previousCalvingCount} onChange={(event) => update({ previousCalvingCount: event.target.value })} placeholder="Ejemplo: 2" /><p className="mt-2 text-sm text-stone-600">No incluye los partos que registrarás después en REJO.</p></div>
             <div className="mt-6 rounded-2xl bg-stone-100 p-4"><p className="text-sm font-bold uppercase tracking-wide text-stone-500">Se agregará</p><p className="mt-1 text-2xl font-black text-stone-950">{form.name}</p><p className="mt-1 text-base text-stone-600">{selectedGroup?.name} · {form.sex === "female" ? "Hembra" : form.sex === "male" ? "Macho" : "Sexo pendiente"}</p><button type="button" disabled={isSaving} className="mt-3 text-base font-bold text-lime-800 underline disabled:opacity-50" onClick={() => setStep(0)}>Cambiar grupo</button></div>
@@ -198,7 +199,7 @@ export const NewAnimalWizard = ({ groups, session, onClose, onSaved }: { groups:
 
 const AnimalRow = ({ animal, groupName, showGroup, onOpen }: { animal: Animal; groupName: string; showGroup: boolean; onOpen: () => void }) => (
   <button type="button" aria-label={`Abrir ficha de ${animal.name}`} className="flex min-h-20 w-full items-center gap-3 px-4 py-3 text-left transition hover:bg-lime-50 active:bg-lime-50 sm:px-5" onClick={onOpen}>
-    <AnimalAvatar name={animal.name} photoUrl={animal.photoUrl} />
+    <AnimalAvatar name={animal.name} photoUrl={animal.photoUrl} crop={animal.photoCrop} />
     <span className="min-w-0 flex-1"><span className="block truncate text-base font-black text-stone-950">{animal.name}</span><span className="mt-1 block text-sm text-stone-600">{animal.sex === "female" ? "Hembra" : animal.sex === "male" ? "Macho" : "Sexo pendiente"}{showGroup ? ` · ${groupName}` : ""}</span></span>
     <ChevronRight className="shrink-0 text-stone-400" size={20} aria-hidden="true" />
   </button>
