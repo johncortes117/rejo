@@ -490,19 +490,16 @@ export const AnimalDetail = ({ animal, groups, session, initialSection = "genera
   useDetailScrollLock();
 
   return <div className={`${screenShell} isolate`} role="dialog" aria-modal="true" aria-label={`Ficha de ${animal.name}`}>
-    <section data-testid="animal-profile-hero" className="relative mx-auto max-w-2xl overflow-hidden bg-lime-950">
-      {animal.photoUrl ? <img className="h-[min(46svh,26rem)] min-h-72 w-full object-cover" src={animal.photoUrl} alt={`Foto de ${animal.name}`} /> : <div className="flex h-72 items-center justify-center bg-[radial-gradient(circle_at_72%_24%,#84cc16,transparent_36%),linear-gradient(145deg,#365314,#14532d)] text-lime-100"><Beef size={96} strokeWidth={1.25} aria-hidden="true" /></div>}
-      <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/10 to-black/25" />
-      <div className="absolute inset-x-0 top-0 flex items-center justify-between gap-3 p-4 pt-[max(1rem,env(safe-area-inset-top))] sm:p-6">
-        <Button type="button" className="min-h-11 bg-white/95 px-3 text-stone-900 shadow-lg hover:bg-white" onClick={onClose} aria-label="Cerrar ficha"><X size={20} aria-hidden="true" /></Button>
-        <Button type="button" className="min-h-11 bg-white/95 px-3 text-stone-900 shadow-lg hover:bg-white" onClick={onEdit} aria-label={`Editar datos de ${animal.name}`}><Pencil size={19} aria-hidden="true" /></Button>
-      </div>
-      <div className="absolute inset-x-0 bottom-0 p-5 pb-6 text-white sm:p-6">
-        <h1 className="break-words text-3xl font-black tracking-tight drop-shadow-sm sm:text-4xl">{animal.name}</h1>
-      </div>
+    <section data-testid="animal-profile-hero" className="mx-auto max-w-2xl bg-lime-950">
+      {animal.photoUrl ? <img className="block h-auto w-full" src={animal.photoUrl} alt={`Foto de ${animal.name}`} /> : <div className="flex h-72 items-center justify-center bg-[radial-gradient(circle_at_72%_24%,#84cc16,transparent_36%),linear-gradient(145deg,#365314,#14532d)] text-lime-100"><Beef size={96} strokeWidth={1.25} aria-hidden="true" /></div>}
     </section>
 
     <div className="mx-auto max-w-2xl p-4 pb-10 sm:p-6">
+      <header className="flex items-center gap-3 pb-5 pt-[max(0.25rem,env(safe-area-inset-top))]">
+        <Button type="button" className="min-h-11 shrink-0 bg-white px-3 text-stone-900 ring-1 ring-stone-200 hover:bg-stone-50" onClick={onClose} aria-label="Cerrar ficha"><X size={20} aria-hidden="true" /></Button>
+        <h1 className="min-w-0 flex-1 break-words text-3xl font-black tracking-tight text-stone-950 sm:text-4xl">{animal.name}</h1>
+        <Button type="button" className="min-h-11 shrink-0 bg-white px-3 text-stone-900 ring-1 ring-stone-200 hover:bg-stone-50" onClick={onEdit} aria-label={`Editar datos de ${animal.name}`}><Pencil size={19} aria-hidden="true" /></Button>
+      </header>
       <div className="sticky top-0 z-20 -mx-4 border-b border-stone-200 bg-stone-100/95 px-4 py-3 backdrop-blur sm:-mx-6 sm:px-6">
         <SegmentedControl ariaLabel="Secciones de la ficha" value={section} onChange={setSection} options={[{ id: "general", label: "General" }, { id: "reproduction", label: "Reproducción" }, { id: "health", label: "Sanidad" }]} />
       </div>
