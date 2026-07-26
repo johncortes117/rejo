@@ -216,6 +216,27 @@ const markAttempt = async (
   });
 };
 
+const establishRemoteFarmAccess = async (
+  database: RejoDb,
+  farmId: string
+): Promise<string | undefined> => {
+  const farm = await database.farms.get(farmId);
+
+  if (!farm) {
+    return "No se encontrÃ³ la finca local que corresponde a estos cambios.";
+  }
+
+  const { error } = await supabase!.rpc("bootstrap_farm", {
+    p_farm_id: farm.id,
+    p_name: farm.name,
+    p_owner_name: farm.ownerName ?? null,
+    p_timezone: farm.timezone,
+    p_created_at: farm.createdAt
+  });
+
+  return error?.message;
+};
+
 export const syncPendingOperations = async (
   database: RejoDb,
   farmId: string
@@ -234,21 +255,17 @@ export const syncPendingOperations = async (
   let processed = 0;
 
   try {
+    if (pendingItems.length > 0) {
+      const farmAccessError = await establishRemoteFarmAccess(database, farmId);
+
+      if (farmAccessError) {
+        await markAttempt(database, pendingItems[0], farmAccessError);
+        return { state: "failed", processed, error: farmAccessError };
+      }
+    }
+
     for (const item of pendingItems) {
       if (item.entityTable === "farms") {
-        const { error } = await supabase.rpc("bootstrap_farm", {
-          p_farm_id: item.entityId,
-          p_name: item.payload.name,
-          p_owner_name: item.payload.ownerName ?? null,
-          p_timezone: item.payload.timezone,
-          p_created_at: item.payload.createdAt
-        });
-
-        if (error) {
-          await markAttempt(database, item, error.message);
-          return { state: "failed", processed, error: error.message };
-        }
-
         await database.syncQueue.put({
           ...item,
           completedAt: new Date().toISOString(),
