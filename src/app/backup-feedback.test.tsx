@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { render, screen } from "@testing-library/react";
+import { render, screen, waitFor } from "@testing-library/react";
 
 const { pullFarmChangesMock, syncPendingOperationsMock, supabaseMock } = vi.hoisted(() => ({
   pullFarmChangesMock: vi.fn(),
@@ -23,7 +23,7 @@ vi.mock("@/sync/sync-service", () => ({
 }));
 
 import { App } from "@/app/app";
-import { saveFarmSession } from "@/db/bootstrap";
+import { readFarmSession, saveFarmSession } from "@/db/bootstrap";
 import { db } from "@/db/rejo-db";
 import { queueUpsert } from "@/db/outbox";
 
@@ -102,5 +102,31 @@ describe("backup feedback", () => {
 
     expect(await screen.findByText("1 cambio quedó respaldado en la nube.")).toBeInTheDocument();
     expect(screen.getByLabelText("Respaldo al día")).toBeInTheDocument();
+  });
+
+  it("repairs legacy identifiers before starting an automatic backup", async () => {
+    const malformedFarmId = "019f9a97-6180-7a7f-95da-8c50993129f02";
+    const repairedFarmId = "019f9a97-6180-7a7f-95da-8c50993129f0";
+    const malformedAnimalId = "019f9a97-6181-7a7f-95da-8c50993129f03";
+
+    await clearDatabase();
+    localStorage.clear();
+    saveFarmSession({ farmId: malformedFarmId, userId: "user", role: "owner" });
+    await db.syncQueue.put(queueUpsert(malformedFarmId, "animals", malformedAnimalId, {
+      id: malformedAnimalId,
+      farmId: malformedFarmId
+    }, "2026-07-25T18:00:00.000Z"));
+    syncPendingOperationsMock.mockResolvedValue({ state: "synced", processed: 1 });
+
+    render(<App />);
+
+    await waitFor(() =>
+      expect(syncPendingOperationsMock).toHaveBeenCalledWith(db, repairedFarmId)
+    );
+    expect(readFarmSession()?.farmId).toBe(repairedFarmId);
+    expect((await db.syncQueue.toArray())[0]).toMatchObject({
+      farmId: repairedFarmId,
+      entityId: "019f9a97-6181-7a7f-95da-8c50993129f0"
+    });
   });
 });

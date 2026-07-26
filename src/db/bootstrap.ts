@@ -31,6 +31,21 @@ export const clearFarmSession = (): void => {
   localStorage.removeItem(SESSION_STORAGE_KEY);
 };
 
+export const repairFarmSessionIds = (replacements: ReadonlyMap<string, string>): void => {
+  const session = readFarmSession();
+  if (!session) return;
+
+  const repaired = {
+    ...session,
+    farmId: replacements.get(session.farmId) ?? session.farmId,
+    userId: replacements.get(session.userId) ?? session.userId
+  };
+
+  if (repaired.farmId !== session.farmId || repaired.userId !== session.userId) {
+    saveFarmSession(repaired);
+  }
+};
+
 export interface ProvisionFarmInput {
   farmName: string;
   ownerName?: string;

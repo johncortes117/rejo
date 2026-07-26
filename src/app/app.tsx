@@ -6,8 +6,9 @@ import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { AlertTriangle, BadgeDollarSign, Beef, ChartNoAxesCombined, CircleCheck, ClipboardPenLine, CloudCheck, CloudUpload, House, LoaderCircle, Menu, Milk, Sprout, TrendingDown, TrendingUp } from "lucide-react";
 import { Button, Card, FieldLabel, Notice, TextInput } from "@/components/ui";
-import { clearFarmSession, provisionFarm, readFarmSession, saveFarmSession } from "@/db/bootstrap";
+import { clearFarmSession, provisionFarm, readFarmSession, repairFarmSessionIds, saveFarmSession } from "@/db/bootstrap";
 import { db } from "@/db/rejo-db";
+import { repairLegacyUuidRecords } from "@/db/repair-legacy-uuids";
 import { nowInFarmTimezone } from "@/domain/time";
 import type { FarmSession } from "@/domain/models";
 import { AnimalsBrowserPage } from "@/features/animals/animals-browser-page";
@@ -581,5 +582,41 @@ const ConfiguredApp = () => {
   return <AppShell session={farmSession} onSignOut={signOut} />;
 };
 
+const ConfiguredAppBootstrap = () => {
+  const [isPreparingLocalData, setIsPreparingLocalData] = useState(true);
+  const [localDataError, setLocalDataError] = useState<string>();
+  const [repairAttempt, setRepairAttempt] = useState(0);
+
+  useEffect(() => {
+    let cancelled = false;
+    setIsPreparingLocalData(true);
+    setLocalDataError(undefined);
+
+    void repairLegacyUuidRecords(db).then((result) => {
+      repairFarmSessionIds(result.replacements);
+      if (!cancelled) setIsPreparingLocalData(false);
+    }).catch((caught) => {
+      if (!cancelled) {
+        setLocalDataError(caught instanceof Error ? caught.message : "No se pudieron preparar los datos guardados.");
+        setIsPreparingLocalData(false);
+      }
+    });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [repairAttempt]);
+
+  if (isPreparingLocalData) {
+    return <main className="p-5"><Notice tone="info">Preparando los datos guardados en este celular…</Notice></main>;
+  }
+
+  if (localDataError) {
+    return <main className="mx-auto max-w-xl p-5"><Notice tone="error">No se pudieron preparar los datos locales: {localDataError}</Notice><Button type="button" className="mt-4 bg-lime-700 text-white" onClick={() => setRepairAttempt((current) => current + 1)}>Reintentar</Button></main>;
+  }
+
+  return <ConfiguredApp />;
+};
+
 export const App = () =>
-  isSupabaseConfigured && supabase ? <ConfiguredApp /> : <LocalApp />;
+  isSupabaseConfigured && supabase ? <ConfiguredAppBootstrap /> : <LocalApp />;
