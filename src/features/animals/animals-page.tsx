@@ -55,7 +55,7 @@ const reproductiveLabel = (status: ReturnType<typeof computeReproductiveState>["
   not_applicable: "No aplica"
 })[status];
 
-const screenShell = "fixed inset-0 z-50 h-[100dvh] overflow-y-auto overscroll-contain bg-stone-100";
+const screenShell = "fixed inset-0 z-[100] h-[100dvh] overflow-y-auto overscroll-contain bg-stone-100";
 
 const formatFarmDate = (date: string): string => new Intl.DateTimeFormat("es-EC", {
   day: "numeric",
@@ -486,22 +486,19 @@ const GeneralPanel = ({ animal, groupName, onArchive }: { animal: Animal; groupN
 
 export const AnimalDetail = ({ animal, groups, session, initialSection = "general", onClose, onEdit, onArchive }: { animal: Animal; groups: HerdGroup[]; session: FarmSession; initialSection?: DetailSection; onClose: () => void; onEdit: () => void; onArchive?: () => void }) => {
   const [section, setSection] = useState<DetailSection>(initialSection);
-  const sexLabel = animal.sex === "female" ? "Hembra" : animal.sex === "male" ? "Macho" : "Sexo pendiente";
   const groupName = groups.find((group) => group.id === animal.herdGroupId)?.name ?? groups[0]?.name ?? "Sin grupo";
   useDetailScrollLock();
 
   return <div className={`${screenShell} isolate`} role="dialog" aria-modal="true" aria-label={`Ficha de ${animal.name}`}>
-    <section className="relative mx-auto max-w-2xl overflow-hidden bg-lime-950">
-      {animal.photoUrl ? <img className="h-[min(46svh,26rem)] min-h-72 w-full object-cover" src={animal.photoUrl} alt={`Foto de ${animal.name}`} /> : <div className="flex h-72 items-center justify-center bg-[radial-gradient(circle_at_72%_24%,#84cc16,transparent_36%),linear-gradient(145deg,#365314,#14532d)] text-lime-100"><Beef size={96} strokeWidth={1.25} aria-hidden="true" /></div>}
-      <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/10 to-black/25" />
+    <section data-testid="animal-profile-hero" className="relative mx-auto h-52 max-w-2xl overflow-hidden bg-lime-950 sm:h-64">
+      {animal.photoUrl ? <img className="absolute inset-0 h-full w-full object-cover" src={animal.photoUrl} alt={`Foto de ${animal.name}`} /> : <div className="absolute inset-0 flex items-center justify-center bg-[radial-gradient(circle_at_72%_24%,#84cc16,transparent_36%),linear-gradient(145deg,#365314,#14532d)] text-lime-100"><Beef size={72} strokeWidth={1.25} aria-hidden="true" /></div>}
+      <div className="pointer-events-none absolute inset-x-0 bottom-0 h-2/3 bg-gradient-to-t from-black/85 via-black/45 to-transparent" />
       <div className="absolute inset-x-0 top-0 flex items-center justify-between gap-3 p-4 pt-[max(1rem,env(safe-area-inset-top))] sm:p-6">
         <Button type="button" className="min-h-11 bg-white/95 px-3 text-stone-900 shadow-lg hover:bg-white" onClick={onClose} aria-label="Cerrar ficha"><X size={20} aria-hidden="true" /></Button>
-        <Button type="button" className="min-h-11 bg-white/95 px-3 text-stone-900 shadow-lg hover:bg-white" onClick={onEdit} aria-label={`Editar datos de ${animal.name}`}><Pencil size={19} aria-hidden="true" /><span className="hidden sm:inline">Editar</span></Button>
+        <Button type="button" className="min-h-11 bg-white/95 px-3 text-stone-900 shadow-lg hover:bg-white" onClick={onEdit} aria-label={`Editar datos de ${animal.name}`}><Pencil size={19} aria-hidden="true" /></Button>
       </div>
       <div className="absolute inset-x-0 bottom-0 p-5 pb-6 text-white sm:p-6">
-        <p className="text-sm font-bold uppercase tracking-[0.16em] text-lime-200">{groupName}</p>
-        <h1 className="mt-1 break-words text-4xl font-black tracking-tight sm:text-5xl">{animal.name}</h1>
-        <p className="mt-2 text-base font-semibold text-stone-100">{sexLabel}{animal.birthDateEstimated ? " · edad estimada" : ""}</p>
+        <h1 className="break-words text-3xl font-black tracking-tight drop-shadow-sm sm:text-4xl">{animal.name}</h1>
       </div>
     </section>
 
