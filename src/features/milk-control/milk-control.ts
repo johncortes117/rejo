@@ -22,6 +22,11 @@ export interface HerdIndicators {
   milk: MilkControlSummary;
 }
 
+export interface AnimalMilkTrendPoint {
+  date: string;
+  liters: number;
+}
+
 const round = (value: number) => Math.round((value + Number.EPSILON) * 100) / 100;
 
 export const summarizeMilkControl = (sessions: MilkControlSession[], records: MilkControlRecord[]): MilkControlSummary => {
@@ -37,6 +42,25 @@ export const summarizeMilkControl = (sessions: MilkControlSession[], records: Mi
   const priorTotalLiters = round(records.filter((item) => !item.deletedAt && item.sessionId === previous.id).reduce((total, item) => total + item.liters, 0));
   const change = totalLiters - priorTotalLiters;
   return { session, totalLiters, averageLiters, bands, priorTotalLiters, trend: Math.abs(change) < 0.1 ? "steady" : change > 0 ? "up" : "down" };
+};
+
+export const buildAnimalMilkTrend = (
+  animalId: string,
+  sessions: MilkControlSession[],
+  records: MilkControlRecord[]
+): AnimalMilkTrendPoint[] => {
+  const litersBySession = new Map<string, number>();
+
+  records
+    .filter((record) => !record.deletedAt && record.animalId === animalId)
+    .forEach((record) => {
+      litersBySession.set(record.sessionId, (litersBySession.get(record.sessionId) ?? 0) + record.liters);
+    });
+
+  return sessions
+    .filter((session) => !session.deletedAt && litersBySession.has(session.id))
+    .sort((left, right) => left.date.localeCompare(right.date))
+    .map((session) => ({ date: session.date, liters: round(litersBySession.get(session.id) ?? 0) }));
 };
 
 export const buildHerdIndicators = (input: { animals: Animal[]; sessions: MilkControlSession[]; records: MilkControlRecord[]; healthEvents: HealthEvent[]; services: Service[]; pregnancyChecks: PregnancyCheck[]; date: string }): HerdIndicators => {

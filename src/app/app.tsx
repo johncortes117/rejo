@@ -6,6 +6,7 @@ import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { AlertTriangle, BadgeDollarSign, Beef, ChartNoAxesCombined, CircleCheck, ClipboardPenLine, CloudCheck, CloudUpload, House, LoaderCircle, Menu, Milk, Sprout, TrendingDown, TrendingUp } from "lucide-react";
 import { Button, Card, FieldLabel, Notice, TextInput } from "@/components/ui";
+import { TrendSparkline } from "@/components/trend-sparkline";
 import { clearFarmSession, provisionFarm, readFarmSession, repairFarmSessionIds, saveFarmSession } from "@/db/bootstrap";
 import { db } from "@/db/rejo-db";
 import { repairLegacyUuidRecords } from "@/db/repair-legacy-uuids";
@@ -16,7 +17,7 @@ import { ReproductionWorklistPage } from "@/features/animals/reproduction-workli
 import { HealthWorklistPage } from "@/features/health/health-worklist-page";
 import { MilkCapturePage } from "@/features/milk/milk-capture-page";
 import { getMilkDashboard } from "@/features/milk/dashboard";
-import { getDecisionDashboard, type MilkTrendPoint } from "@/features/insights/decision-dashboard";
+import { getDecisionDashboard } from "@/features/insights/decision-dashboard";
 import { SettingsPage } from "@/features/settings/settings-page";
 import { FinancePage } from "@/features/economics/finance-page";
 import { PaddocksPage } from "@/features/paddocks/paddocks-page";
@@ -116,30 +117,13 @@ interface HomePageProps {
   onMilkControl: () => void;
 }
 
-const MilkTrendChart = ({ points }: { points: MilkTrendPoint[] }) => {
-  if (points.length < 2) {
-    return <p className="text-base text-stone-600">Sigue anotando la medida diaria para ver la tendencia.</p>;
-  }
-  const values = points.map((point) => point.liters);
-  const minimum = Math.min(...values);
-  const maximum = Math.max(...values);
-  const range = maximum - minimum || 1;
-  const coordinates = points.map((point, index) => {
-    const x = 12 + (index / (points.length - 1)) * 296;
-    const y = 100 - ((point.liters - minimum) / range) * 76;
-    return `${x},${y}`;
-  }).join(" ");
-  return <svg className="h-24 w-full overflow-visible" viewBox="0 0 320 112" role="img" aria-label={`Tendencia de ${points.length} medidas del tanque, entre ${minimum.toFixed(1)} y ${maximum.toFixed(1)} litros`}><line x1="12" x2="308" y1="100" y2="100" stroke="currentColor" strokeOpacity="0.15" /><polyline points={coordinates} fill="none" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="4" /><circle cx={coordinates.split(" ").at(-1)?.split(",")[0]} cy={coordinates.split(" ").at(-1)?.split(",")[1]} fill="currentColor" r="5" /></svg>;
-};
-
 const HomePage = ({ session, onCapture, onHerd, onFinance, onPaddocks, onMilkControl }: HomePageProps) => {
   const { date } = nowInFarmTimezone();
-  const [trendPeriod, setTrendPeriod] = useState<7 | 30>(7);
+  const [isLongTrendVisible, setIsLongTrendVisible] = useState(false);
   const [showAllAlerts, setShowAllAlerts] = useState(false);
-  const [isTrendVisible, setIsTrendVisible] = useState(false);
   const dashboard = useLiveQuery(() => getMilkDashboard(db, session.farmId, date), [session.farmId, date]);
   const decisions = useLiveQuery(() => getDecisionDashboard(db, session.farmId, date), [session.farmId, date]);
-  const trend = decisions?.trend.slice(-trendPeriod) ?? [];
+  const trend = decisions?.trend.slice(isLongTrendVisible ? -30 : -7) ?? [];
   const directionLabel = decisions?.trendDirection === "down" ? "Bajando frente a los días anteriores" : decisions?.trendDirection === "up" ? "Subiendo frente a los días anteriores" : decisions?.trendDirection === "steady" ? "Se mantiene estable" : "Aún no hay tendencia suficiente";
   const visibleAlerts = showAllAlerts ? decisions?.alerts ?? [] : decisions?.alerts.slice(0, 2) ?? [];
   const shortcuts = [
@@ -176,6 +160,7 @@ const HomePage = ({ session, onCapture, onHerd, onFinance, onPaddocks, onMilkCon
           <span className="font-semibold text-lime-100">Promedio 7 días</span>
           <span className="font-black">{dashboard?.sevenDayAverage === undefined ? "Sin promedio" : `${dashboard.sevenDayAverage.toFixed(1)} L`}</span>
         </div>
+        {hasTrend ? <div className="mt-3 border-t border-lime-700 pt-3"><div className="flex items-center justify-between gap-3"><span className="flex items-center gap-1.5 text-sm font-bold text-lime-100"><ChartNoAxesCombined size={16} aria-hidden="true" />Entregas recientes</span>{(decisions?.trend.length ?? 0) > 7 ? <button type="button" className="min-h-9 rounded-lg bg-lime-700/80 px-2.5 text-xs font-bold text-white" onClick={() => setIsLongTrendVisible((current) => !current)}>{isLongTrendVisible ? "7 recientes" : "30 días"}</button> : null}</div><div className="mt-1"><TrendSparkline points={trend.map((point) => ({ label: point.date, value: point.liters }))} className="text-lime-100" ariaLabel={`Tendencia de ${trend.length} entregas de leche, entre ${Math.min(...trend.map((point) => point.liters)).toFixed(1)} y ${Math.max(...trend.map((point) => point.liters)).toFixed(1)} litros`} /></div><p className="-mt-1 flex items-center gap-1.5 text-sm font-semibold text-lime-100">{decisions?.trendDirection === "down" ? <TrendingDown size={16} aria-hidden="true" /> : decisions?.trendDirection === "up" ? <TrendingUp size={16} aria-hidden="true" /> : <ChartNoAxesCombined size={16} aria-hidden="true" />}{directionLabel}</p></div> : null}
       </section>
 
       <section className="space-y-3">
@@ -200,7 +185,6 @@ const HomePage = ({ session, onCapture, onHerd, onFinance, onPaddocks, onMilkCon
         </div>
       </section>
 
-      {hasTrend ? <Card><div className="flex items-center justify-between gap-4"><div><p className="flex items-center gap-1.5 text-sm font-bold uppercase tracking-wide text-stone-500"><ChartNoAxesCombined size={16} aria-hidden="true" />Producción</p><div className="mt-1 flex items-center gap-2 text-base font-bold text-stone-800">{decisions?.trendDirection === "down" ? <TrendingDown size={19} className="text-amber-700" aria-hidden="true" /> : <TrendingUp size={19} className="text-lime-700" aria-hidden="true" />}{directionLabel}</div></div><button type="button" aria-expanded={isTrendVisible} className="min-h-10 shrink-0 rounded-xl bg-stone-100 px-3 text-sm font-bold text-stone-800" onClick={() => setIsTrendVisible((current) => !current)}>{isTrendVisible ? "Ocultar" : "Ver"}</button></div>{isTrendVisible ? <div className="mt-4"><div className="flex justify-end"><div className="grid grid-cols-2 rounded-xl bg-stone-100 p-1"><button type="button" aria-pressed={trendPeriod === 7} className={`min-h-10 rounded-lg px-3 text-sm font-bold ${trendPeriod === 7 ? "bg-white text-lime-950 shadow-sm" : "text-stone-600"}`} onClick={() => setTrendPeriod(7)}>7 días</button><button type="button" aria-pressed={trendPeriod === 30} className={`min-h-10 rounded-lg px-3 text-sm font-bold ${trendPeriod === 30 ? "bg-white text-lime-950 shadow-sm" : "text-stone-600"}`} onClick={() => setTrendPeriod(30)}>30 días</button></div></div><div className="mt-3 text-lime-800"><MilkTrendChart points={trend} /></div></div> : null}</Card> : null}
     </div>
   );
 };

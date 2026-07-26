@@ -1,18 +1,20 @@
-import { useEffect, useRef, useState } from "react";
+import { type ReactNode, useEffect, useRef, useState } from "react";
 import { useLiveQuery } from "dexie-react-hooks";
-import { Archive, ArrowDown, ArrowUp, Beef, Check, CirclePlus, ClipboardPenLine, Clock3, FolderOpen, HeartPulse, LoaderCircle, Pencil, Save, ShieldPlus, SlidersHorizontal, Stethoscope, Syringe, X } from "lucide-react";
+import { Archive, ArrowDown, ArrowLeft, ArrowUp, Beef, Check, CirclePlus, ClipboardPenLine, Clock3, FolderOpen, HeartPulse, LoaderCircle, Milk, Pencil, Plus, Save, ShieldPlus, SlidersHorizontal, Stethoscope, Syringe, X } from "lucide-react";
 import { Button, Card, FieldLabel, Notice, SegmentedControl, TextInput } from "@/components/ui";
+import { TrendSparkline } from "@/components/trend-sparkline";
 import type { Animal, AnimalSex, FarmSession, HerdGroup } from "@/domain/models";
 import { db } from "@/db/rejo-db";
 import { nowInFarmTimezone } from "@/domain/time";
 import { archiveAnimal, saveAnimal } from "@/features/animals/animals";
-import { AnimalAvatar, AnimalPhotoPicker } from "@/features/animals/animal-photo";
+import { AnimalPhotoPicker } from "@/features/animals/animal-photo";
 import { createHerdGroup, ensureDefaultHerdGroups, renameHerdGroup, reorderHerdGroup } from "@/features/animals/herd-groups";
 import { recordCalving, recordDryOff, recordHeat, recordPregnancyCheck, recordService } from "@/features/reproduction/events";
 import { computeReproductiveState } from "@/features/reproduction/reproductive-state";
 import { recordHealthEvent } from "@/features/health/events";
 import { computeMilkWithholdingUntil, isMilkWithheld } from "@/features/health/milk-withholding";
 import { updateHealthPlanTask } from "@/features/health/plan-tasks";
+import { buildAnimalMilkTrend } from "@/features/milk-control/milk-control";
 
 interface AnimalsPageProps {
   session: FarmSession;
@@ -53,7 +55,28 @@ const reproductiveLabel = (status: ReturnType<typeof computeReproductiveState>["
   not_applicable: "No aplica"
 })[status];
 
-const screenShell = "fixed inset-0 z-50 overflow-y-auto bg-stone-100";
+const screenShell = "fixed inset-0 z-50 h-[100dvh] overflow-y-auto overscroll-contain bg-stone-100";
+
+const formatFarmDate = (date: string): string => new Intl.DateTimeFormat("es-EC", {
+  day: "numeric",
+  month: "short",
+  year: "numeric",
+  timeZone: "America/Guayaquil"
+}).format(new Date(`${date}T12:00:00-05:00`));
+
+const useDetailScrollLock = (): void => {
+  useEffect(() => {
+    const previousOverflow = document.body.style.overflow;
+    const previousOverscroll = document.body.style.overscrollBehavior;
+    document.body.style.overflow = "hidden";
+    document.body.style.overscrollBehavior = "none";
+
+    return () => {
+      document.body.style.overflow = previousOverflow;
+      document.body.style.overscrollBehavior = previousOverscroll;
+    };
+  }, []);
+};
 
 const FullScreenHeader = ({
   eyebrow,
@@ -77,6 +100,59 @@ const FullScreenHeader = ({
   </header>
 );
 
+const ProfileCaptureScreen = ({
+  eyebrow,
+  title,
+  onClose,
+  disabled = false,
+  children
+}: {
+  eyebrow: string;
+  title: string;
+  onClose: () => void;
+  disabled?: boolean;
+  children: ReactNode;
+}) => (
+  <div className="fixed inset-0 z-[60] h-[100dvh] overflow-y-auto overscroll-contain bg-stone-100" role="dialog" aria-modal="true" aria-label={title}>
+    <header className="sticky top-0 z-10 flex items-center gap-3 border-b border-stone-200 bg-white/95 px-4 py-3 backdrop-blur sm:px-6">
+      <Button type="button" disabled={disabled} className="min-h-11 shrink-0 bg-stone-100 px-3 text-stone-800" onClick={onClose} aria-label="Volver a la ficha">
+        <ArrowLeft size={20} aria-hidden="true" />
+      </Button>
+      <div className="min-w-0">
+        <p className="text-xs font-bold uppercase tracking-[0.16em] text-lime-800">{eyebrow}</p>
+        <h2 className="truncate text-xl font-black text-stone-950 sm:text-2xl">{title}</h2>
+      </div>
+    </header>
+    <div className="mx-auto max-w-2xl p-4 pb-10 pt-6 sm:p-6">{children}</div>
+  </div>
+);
+
+interface HistoryEntry {
+  id: string;
+  date: string;
+  title: string;
+  detail?: string;
+  tone: "lime" | "red" | "stone";
+}
+
+const HistoryList = ({ entries, emptyMessage }: { entries: HistoryEntry[]; emptyMessage: string }) => {
+  const [isExpanded, setIsExpanded] = useState(false);
+  const visibleEntries = isExpanded ? entries : entries.slice(0, 4);
+
+  return (
+    <section>
+      <div className="flex items-end justify-between gap-3 px-1">
+        <div>
+          <p className="text-sm font-bold uppercase tracking-wide text-stone-500">Historial</p>
+          <h2 className="mt-1 text-xl font-black text-stone-950">Últimos registros</h2>
+        </div>
+        {entries.length > 4 ? <button type="button" className="min-h-10 rounded-xl px-2 text-sm font-bold text-lime-800 underline" onClick={() => setIsExpanded((current) => !current)}>{isExpanded ? "Ver menos" : `Ver todo (${entries.length})`}</button> : null}
+      </div>
+      {entries.length === 0 ? <p className="mt-3 rounded-2xl border border-dashed border-stone-300 bg-white px-4 py-4 text-sm leading-snug text-stone-600">{emptyMessage}</p> : <div className="mt-3 overflow-hidden rounded-3xl border border-stone-200 bg-white shadow-[0_8px_28px_rgba(28,25,23,0.06)]">{visibleEntries.map((entry, index) => <div key={entry.id} className={`flex gap-3 px-4 py-4 sm:px-5 ${index ? "border-t border-stone-100" : ""}`}><span className={`mt-1.5 h-2.5 w-2.5 shrink-0 rounded-full ${entry.tone === "red" ? "bg-red-600" : entry.tone === "lime" ? "bg-lime-700" : "bg-stone-400"}`} /><div className="min-w-0 flex-1"><div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1"><p className="font-black text-stone-950">{entry.title}</p><time className="text-sm font-semibold text-stone-500">{formatFarmDate(entry.date)}</time></div>{entry.detail ? <p className="mt-1 text-sm leading-snug text-stone-600">{entry.detail}</p> : null}</div></div>)}</div>}
+    </section>
+  );
+};
+
 const HealthPanel = ({ animal, session }: { animal: Animal; session: FarmSession }) => {
   const { date: today } = nowInFarmTimezone();
   const [date, setDate] = useState(today);
@@ -85,6 +161,9 @@ const HealthPanel = ({ animal, session }: { animal: Animal; session: FarmSession
   const [withdrawalHours, setWithdrawalHours] = useState("");
   const [message, setMessage] = useState<string>();
   const [error, setError] = useState<string>();
+  const [isRecording, setIsRecording] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
+  const saveRef = useRef(false);
   const events = useLiveQuery(
     () => db.healthEvents.filter((item) => item.animalId === animal.id && !item.deletedAt).toArray(),
     [animal.id],
@@ -97,8 +176,18 @@ const HealthPanel = ({ animal, session }: { animal: Animal; session: FarmSession
   );
   const withholdingUntil = computeMilkWithholdingUntil(events);
   const milkWithheld = isMilkWithheld(events, new Date());
+  const healthHistory: HistoryEntry[] = [...events]
+    .sort((left, right) => right.date.localeCompare(left.date))
+    .map((event) => ({
+      id: event.id,
+      date: event.date,
+      title: event.type === "mastitis" ? "Atención por mastitis" : event.type === "deworming" ? "Curada" : event.type === "vaccination" ? "Vacuna" : event.type === "lameness" ? "Atención por cojera" : "Atención sanitaria",
+      detail: [event.productName, event.milkWithdrawalHours ? `${event.milkWithdrawalHours} h sin entregar leche` : undefined].filter(Boolean).join(" · ") || undefined,
+      tone: event.milkWithdrawalHours ? "red" : "lime"
+    }));
 
   const save = async () => {
+    if (saveRef.current) return;
     setMessage(undefined);
     setError(undefined);
     const hours = withdrawalHours === "" ? undefined : Number(withdrawalHours);
@@ -106,6 +195,8 @@ const HealthPanel = ({ animal, session }: { animal: Animal; session: FarmSession
       setError("Escribe horas de retiro válidas.");
       return;
     }
+    saveRef.current = true;
+    setIsSaving(true);
     try {
       await recordHealthEvent(db, {
         farmId: session.farmId,
@@ -119,8 +210,12 @@ const HealthPanel = ({ animal, session }: { animal: Animal; session: FarmSession
       setMessage("El evento sanitario quedó guardado en el celular.");
       setProductName("");
       setWithdrawalHours("");
+      setIsRecording(false);
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : "No se pudo guardar el evento sanitario.");
+    } finally {
+      saveRef.current = false;
+      setIsSaving(false);
     }
   };
 
@@ -141,35 +236,36 @@ const HealthPanel = ({ animal, session }: { animal: Animal; session: FarmSession
       {message ? <Notice tone="success">{message}</Notice> : null}
       {error ? <Notice tone="error">{error}</Notice> : null}
 
-      <Card>
-        <p className="text-sm font-bold uppercase tracking-wide text-stone-500">Nuevo registro</p>
-        <h2 className="mt-1 flex items-center gap-2 text-2xl font-black text-stone-950"><Stethoscope size={24} aria-hidden="true" />¿Qué atención recibió?</h2>
-        <div className="mt-5">
-          <FieldLabel>Evento</FieldLabel>
-          <select className="min-h-12 w-full rounded-2xl border border-stone-300 bg-stone-50 px-4 text-lg text-stone-950 outline-none focus:border-lime-700 focus:bg-white focus:ring-4 focus:ring-lime-100" value={type} onChange={(event) => setType(event.target.value as typeof type)}>
-            <option value="mastitis">Mastitis</option>
-            <option value="deworming">Curada</option>
-            <option value="vaccination">Vacuna</option>
-            <option value="other">Otro</option>
-          </select>
-        </div>
-        <div className="mt-5">
-          <FieldLabel>Producto aplicado <span className="normal-case tracking-normal">(opcional)</span></FieldLabel>
-          <TextInput value={productName} onChange={(event) => setProductName(event.target.value)} placeholder="Ejemplo: medicamento aplicado" />
-        </div>
-        <div className="mt-5">
-          <FieldLabel>Horas sin entregar leche <span className="normal-case tracking-normal">(opcional)</span></FieldLabel>
-          <TextInput inputMode="numeric" min="0" type="number" value={withdrawalHours} onChange={(event) => setWithdrawalHours(event.target.value)} placeholder="Ejemplo: 96" />
-        </div>
-        <div className="mt-5">
-          <FieldLabel>Fecha</FieldLabel>
-          <TextInput type="date" value={date} onChange={(event) => setDate(event.target.value)} />
-        </div>
-        <Button type="button" className="mt-6 w-full bg-red-800 text-white hover:bg-red-900" onClick={() => void save()}>
-          <Syringe size={20} aria-hidden="true" />
-          Guardar atención sanitaria
-        </Button>
-      </Card>
+      <section className={`rounded-3xl border p-4 ${milkWithheld ? "border-red-200 bg-red-50 text-red-950" : "border-lime-200 bg-lime-50 text-lime-950"}`}>
+        <p className="text-sm font-bold uppercase tracking-wide opacity-75">Estado de leche</p>
+        <p className="mt-1 text-xl font-black">{milkWithheld ? "Retiro vigente" : "Leche habilitada"}</p>
+        <p className="mt-1 text-sm leading-snug opacity-80">{milkWithheld ? `No se entrega hasta ${new Date(withholdingUntil!).toLocaleString("es-EC", { timeZone: "America/Guayaquil" })}.` : "No hay retiro de leche activo para este animal."}</p>
+      </section>
+
+      <Button type="button" className="w-full bg-red-800 text-white shadow-[0_12px_25px_rgba(153,27,27,0.16)] hover:bg-red-900" onClick={() => { setError(undefined); setIsRecording(true); }}>
+        <Plus size={20} aria-hidden="true" />Registrar atención
+      </Button>
+
+      {isRecording ? <ProfileCaptureScreen eyebrow={animal.name} title="Registrar atención" disabled={isSaving} onClose={() => setIsRecording(false)}>
+        {error ? <div className="mb-5"><Notice tone="error">{error}</Notice></div> : null}
+        <Card>
+          <p className="text-sm font-bold uppercase tracking-wide text-stone-500">Sanidad</p>
+          <h2 className="mt-1 flex items-center gap-2 text-2xl font-black text-stone-950"><Stethoscope size={24} aria-hidden="true" />¿Qué atención recibió?</h2>
+          <div className="mt-5">
+            <FieldLabel>Evento</FieldLabel>
+            <select disabled={isSaving} className="min-h-12 w-full rounded-2xl border border-stone-300 bg-stone-50 px-4 text-lg text-stone-950 outline-none focus:border-lime-700 focus:bg-white focus:ring-4 focus:ring-lime-100 disabled:opacity-50" value={type} onChange={(event) => setType(event.target.value as typeof type)}>
+              <option value="mastitis">Mastitis</option>
+              <option value="deworming">Curada</option>
+              <option value="vaccination">Vacuna</option>
+              <option value="other">Otro</option>
+            </select>
+          </div>
+          <div className="mt-5"><FieldLabel>Producto aplicado <span className="normal-case tracking-normal">(opcional)</span></FieldLabel><TextInput disabled={isSaving} value={productName} onChange={(event) => setProductName(event.target.value)} placeholder="Ejemplo: medicamento aplicado" /></div>
+          <div className="mt-5"><FieldLabel>Horas sin entregar leche <span className="normal-case tracking-normal">(opcional)</span></FieldLabel><TextInput disabled={isSaving} inputMode="numeric" min="0" type="number" value={withdrawalHours} onChange={(event) => setWithdrawalHours(event.target.value)} placeholder="Ejemplo: 96" /></div>
+          <div className="mt-5"><FieldLabel>Fecha</FieldLabel><TextInput disabled={isSaving} type="date" value={date} onChange={(event) => setDate(event.target.value)} /></div>
+          <Button type="button" disabled={isSaving} className="mt-6 w-full bg-red-800 text-white hover:bg-red-900" onClick={() => void save()}>{isSaving ? <><LoaderCircle className="animate-spin" size={20} aria-hidden="true" />Guardando atención…</> : <><Syringe size={20} aria-hidden="true" />Guardar atención sanitaria</>}</Button>
+        </Card>
+      </ProfileCaptureScreen> : null}
 
       {tasks.length > 0 ? (
         <section>
@@ -190,6 +286,7 @@ const HealthPanel = ({ animal, session }: { animal: Animal; session: FarmSession
           </div>
         </section>
       ) : null}
+      <HistoryList entries={healthHistory} emptyMessage="Aún no hay atenciones sanitarias registradas para este animal." />
     </div>
   );
 };
@@ -204,23 +301,37 @@ const ReproductionPanel = ({ animal, session }: { animal: Animal; session: FarmS
   const [calfSex, setCalfSex] = useState<"female" | "male">("female");
   const [message, setMessage] = useState<string>();
   const [error, setError] = useState<string>();
+  const [isRecording, setIsRecording] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
+  const saveRef = useRef(false);
   const facts = useLiveQuery(
     async () => Promise.all([
       db.heats.filter((item) => item.animalId === animal.id && !item.deletedAt).toArray(),
       db.services.filter((item) => item.animalId === animal.id && !item.deletedAt).toArray(),
       db.pregnancyChecks.filter((item) => item.animalId === animal.id && !item.deletedAt).toArray(),
-      db.calvings.filter((item) => item.animalId === animal.id && !item.deletedAt).toArray()
+      db.calvings.filter((item) => item.animalId === animal.id && !item.deletedAt).toArray(),
+      db.dryOffs.filter((item) => item.animalId === animal.id && !item.deletedAt).toArray()
     ]),
     [animal.id],
-    [[], [], [], []]
+    [[], [], [], [], []]
   );
-  const [heats, services, pregnancyChecks, calvings] = facts;
+  const [heats, services, pregnancyChecks, calvings, dryOffs] = facts;
   const state = computeReproductiveState({ asOf: today, sex: animal.sex, heats, services, pregnancyChecks, calvings });
+  const reproductiveHistory: HistoryEntry[] = [
+    ...heats.map((event) => ({ id: event.id, date: event.date, title: "Celo detectado", detail: event.served ? "Se registró como atendido." : undefined, tone: "red" as const })),
+    ...services.map((event) => ({ id: event.id, date: event.date, title: event.type === "ai" ? "Inseminación" : "Servicio natural", detail: `Servicio #${event.serviceNumber}`, tone: "lime" as const })),
+    ...pregnancyChecks.map((event) => ({ id: event.id, date: event.date, title: event.result === "pregnant" ? "Preñez confirmada" : event.result === "open" ? "Palpación: vacía" : "Palpación: dudosa", detail: event.method === "ultrasound" ? "Ecografía" : "Palpación", tone: event.result === "pregnant" ? "lime" as const : "stone" as const })),
+    ...calvings.map((event) => ({ id: event.id, date: event.date, title: "Parto registrado", detail: event.calfIds.length === 1 ? "Una cría registrada." : `${event.calfIds.length} crías registradas.`, tone: "lime" as const })),
+    ...dryOffs.map((event) => ({ id: event.id, date: event.date, title: "Secado", detail: event.expectedCalvingDate ? `Parto esperado: ${formatFarmDate(event.expectedCalvingDate)}.` : undefined, tone: "stone" as const }))
+  ].sort((left, right) => right.date.localeCompare(left.date));
 
   const save = async () => {
+    if (saveRef.current) return;
     setError(undefined);
     setMessage(undefined);
     const input = { farmId: session.farmId, animalId: animal.id, userId: session.userId, date };
+    saveRef.current = true;
+    setIsSaving(true);
     try {
       if (eventType === "heat") {
         await recordHeat(db, input);
@@ -239,8 +350,12 @@ const ReproductionPanel = ({ animal, session }: { animal: Animal; session: FarmS
         await recordDryOff(db, input);
         setMessage("El secado quedó guardado en el celular.");
       }
+      setIsRecording(false);
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : "No se pudo guardar el evento.");
+    } finally {
+      saveRef.current = false;
+      setIsSaving(false);
     }
   };
 
@@ -259,22 +374,22 @@ const ReproductionPanel = ({ animal, session }: { animal: Animal; session: FarmS
       {message ? <Notice tone="success">{message}</Notice> : null}
       {error ? <Notice tone="error">{error}</Notice> : null}
 
-      <Card>
-        <p className="text-sm font-bold uppercase tracking-wide text-stone-500">Registro rápido</p>
-        <h2 className="mt-1 flex items-center gap-2 text-2xl font-black text-stone-950"><ClipboardPenLine size={24} aria-hidden="true" />¿Qué ocurrió?</h2>
-        <div className="mt-5 grid grid-cols-2 gap-2 sm:grid-cols-3">
-          {eventOptions.map((option) => <Button key={option.value} type="button" aria-pressed={eventType === option.value} className={eventType === option.value ? "bg-lime-700 text-white" : "bg-stone-100 text-stone-800"} onClick={() => setEventType(option.value)}>{option.label}</Button>)}
-        </div>
+      {animal.sex !== "male" ? <Button type="button" className="w-full bg-lime-700 text-white shadow-[0_12px_25px_rgba(77,124,15,0.2)] hover:bg-lime-800" onClick={() => { setError(undefined); setIsRecording(true); }}><Plus size={20} aria-hidden="true" />Registrar evento</Button> : null}
 
-        <div className="mt-5">
-          <FieldLabel>Fecha</FieldLabel>
-          <TextInput type="date" value={date} onChange={(event) => setDate(event.target.value)} />
-        </div>
-        {eventType === "service" ? <div className="mt-5"><FieldLabel>Tipo de servicio</FieldLabel><div className="grid grid-cols-2 gap-3"><Button type="button" aria-pressed={serviceType === "natural"} className={serviceType === "natural" ? "bg-lime-700 text-white" : "bg-stone-100 text-stone-800"} onClick={() => setServiceType("natural")}>Natural</Button><Button type="button" aria-pressed={serviceType === "ai"} className={serviceType === "ai" ? "bg-lime-700 text-white" : "bg-stone-100 text-stone-800"} onClick={() => setServiceType("ai")}>Inseminación</Button></div></div> : null}
-        {eventType === "check" ? <div className="mt-5"><FieldLabel>Resultado de la palpación</FieldLabel><div className="grid grid-cols-1 gap-2 sm:grid-cols-3"><Button type="button" aria-pressed={checkResult === "pregnant"} className={checkResult === "pregnant" ? "bg-lime-700 text-white" : "bg-stone-100 text-stone-800"} onClick={() => setCheckResult("pregnant")}>Preñada</Button><Button type="button" aria-pressed={checkResult === "open"} className={checkResult === "open" ? "bg-lime-700 text-white" : "bg-stone-100 text-stone-800"} onClick={() => setCheckResult("open")}>Vacía</Button><Button type="button" aria-pressed={checkResult === "doubtful"} className={checkResult === "doubtful" ? "bg-lime-700 text-white" : "bg-stone-100 text-stone-800"} onClick={() => setCheckResult("doubtful")}>Dudosa</Button></div></div> : null}
-        {eventType === "calving" ? <div className="mt-5 space-y-5"><div><FieldLabel>Nombre de la cría</FieldLabel><TextInput value={calfName} onChange={(event) => setCalfName(event.target.value)} placeholder="Ejemplo: Lucera" /></div><div><FieldLabel>Sexo de la cría</FieldLabel><div className="grid grid-cols-2 gap-3"><Button type="button" aria-pressed={calfSex === "female"} className={calfSex === "female" ? "bg-lime-700 text-white" : "bg-stone-100 text-stone-800"} onClick={() => setCalfSex("female")}>Hembra</Button><Button type="button" aria-pressed={calfSex === "male"} className={calfSex === "male" ? "bg-lime-700 text-white" : "bg-stone-100 text-stone-800"} onClick={() => setCalfSex("male")}>Macho</Button></div></div>{calfSex === "female" ? <Notice tone="info">REJO programará su vacuna de brucelosis para dentro de tres meses.</Notice> : null}</div> : null}
-        <Button type="button" className="mt-6 w-full bg-lime-700 text-white hover:bg-lime-800" onClick={() => void save()}><Save size={20} aria-hidden="true" />Guardar evento</Button>
-      </Card>
+      {isRecording ? <ProfileCaptureScreen eyebrow={animal.name} title="Registrar evento" disabled={isSaving} onClose={() => setIsRecording(false)}>
+        {error ? <div className="mb-5"><Notice tone="error">{error}</Notice></div> : null}
+        <Card>
+          <p className="text-sm font-bold uppercase tracking-wide text-stone-500">Reproducción</p>
+          <h2 className="mt-1 flex items-center gap-2 text-2xl font-black text-stone-950"><ClipboardPenLine size={24} aria-hidden="true" />¿Qué ocurrió?</h2>
+          <div className="mt-5 grid grid-cols-2 gap-2 sm:grid-cols-3">{eventOptions.map((option) => <Button key={option.value} type="button" disabled={isSaving} aria-pressed={eventType === option.value} className={eventType === option.value ? "bg-lime-700 text-white" : "bg-stone-100 text-stone-800"} onClick={() => setEventType(option.value)}>{option.label}</Button>)}</div>
+          <div className="mt-5"><FieldLabel>Fecha</FieldLabel><TextInput disabled={isSaving} type="date" value={date} onChange={(event) => setDate(event.target.value)} /></div>
+          {eventType === "service" ? <div className="mt-5"><FieldLabel>Tipo de servicio</FieldLabel><div className="grid grid-cols-2 gap-3"><Button type="button" disabled={isSaving} aria-pressed={serviceType === "natural"} className={serviceType === "natural" ? "bg-lime-700 text-white" : "bg-stone-100 text-stone-800"} onClick={() => setServiceType("natural")}>Natural</Button><Button type="button" disabled={isSaving} aria-pressed={serviceType === "ai"} className={serviceType === "ai" ? "bg-lime-700 text-white" : "bg-stone-100 text-stone-800"} onClick={() => setServiceType("ai")}>Inseminación</Button></div></div> : null}
+          {eventType === "check" ? <div className="mt-5"><FieldLabel>Resultado de la palpación</FieldLabel><div className="grid grid-cols-1 gap-2 sm:grid-cols-3"><Button type="button" disabled={isSaving} aria-pressed={checkResult === "pregnant"} className={checkResult === "pregnant" ? "bg-lime-700 text-white" : "bg-stone-100 text-stone-800"} onClick={() => setCheckResult("pregnant")}>Preñada</Button><Button type="button" disabled={isSaving} aria-pressed={checkResult === "open"} className={checkResult === "open" ? "bg-lime-700 text-white" : "bg-stone-100 text-stone-800"} onClick={() => setCheckResult("open")}>Vacía</Button><Button type="button" disabled={isSaving} aria-pressed={checkResult === "doubtful"} className={checkResult === "doubtful" ? "bg-lime-700 text-white" : "bg-stone-100 text-stone-800"} onClick={() => setCheckResult("doubtful")}>Dudosa</Button></div></div> : null}
+          {eventType === "calving" ? <div className="mt-5 space-y-5"><div><FieldLabel>Nombre de la cría</FieldLabel><TextInput disabled={isSaving} value={calfName} onChange={(event) => setCalfName(event.target.value)} placeholder="Ejemplo: Lucera" /></div><div><FieldLabel>Sexo de la cría</FieldLabel><div className="grid grid-cols-2 gap-3"><Button type="button" disabled={isSaving} aria-pressed={calfSex === "female"} className={calfSex === "female" ? "bg-lime-700 text-white" : "bg-stone-100 text-stone-800"} onClick={() => setCalfSex("female")}>Hembra</Button><Button type="button" disabled={isSaving} aria-pressed={calfSex === "male"} className={calfSex === "male" ? "bg-lime-700 text-white" : "bg-stone-100 text-stone-800"} onClick={() => setCalfSex("male")}>Macho</Button></div></div>{calfSex === "female" ? <Notice tone="info">REJO programará su vacuna de brucelosis para dentro de tres meses.</Notice> : null}</div> : null}
+          <Button type="button" disabled={isSaving} className="mt-6 w-full bg-lime-700 text-white hover:bg-lime-800" onClick={() => void save()}>{isSaving ? <><LoaderCircle className="animate-spin" size={20} aria-hidden="true" />Guardando evento…</> : <><Save size={20} aria-hidden="true" />Guardar evento</>}</Button>
+        </Card>
+      </ProfileCaptureScreen> : null}
+      <HistoryList entries={reproductiveHistory} emptyMessage="Aún no hay eventos reproductivos registrados para este animal." />
     </div>
   );
 };
@@ -334,16 +449,67 @@ export const AnimalEditor = ({ animal, groups, defaultGroupId, session, onClose,
   </div>;
 };
 
+const GeneralPanel = ({ animal, groupName, onArchive }: { animal: Animal; groupName: string; onArchive?: () => void }) => {
+  const facts = useLiveQuery(
+    async () => Promise.all([
+      db.calvings.filter((item) => item.animalId === animal.id && !item.deletedAt).toArray(),
+      db.milkControlSessions.filter((item) => item.farmId === animal.farmId && !item.deletedAt).toArray(),
+      db.milkControlRecords.filter((item) => item.animalId === animal.id && !item.deletedAt).toArray()
+    ]),
+    [animal.farmId, animal.id],
+    [[], [], []]
+  );
+  const [calvings, controlSessions, controlRecords] = facts;
+  const milkTrend = buildAnimalMilkTrend(animal.id, controlSessions, controlRecords);
+  const latestMilk = milkTrend.at(-1);
+  const priorMilk = milkTrend.at(-2);
+  const totalCalvings = (animal.previousCalvingCount ?? 0) + calvings.length;
+  const birthLabel = animal.birthDate ? `${formatFarmDate(animal.birthDate)}${animal.birthDateEstimated ? " · estimada" : ""}` : "Sin estimación";
+
+  return <div className="space-y-5">
+    <Card>
+      <p className="text-sm font-bold uppercase tracking-wide text-stone-500">Resumen</p>
+      <dl className="mt-4 grid grid-cols-2 gap-x-4 gap-y-5 text-base">
+        <div><dt className="text-sm font-semibold text-stone-500">Grupo</dt><dd className="mt-1 font-black text-stone-950">{groupName}</dd></div>
+        <div><dt className="text-sm font-semibold text-stone-500">Sexo</dt><dd className="mt-1 font-black text-stone-950">{animal.sex === "female" ? "Hembra" : animal.sex === "male" ? "Macho" : "Pendiente"}</dd></div>
+        <div><dt className="text-sm font-semibold text-stone-500">Nacimiento</dt><dd className="mt-1 font-black leading-snug text-stone-950">{birthLabel}</dd></div>
+        <div><dt className="text-sm font-semibold text-stone-500">Partos</dt><dd className="mt-1 font-black text-stone-950">{totalCalvings || "Sin dato"}</dd></div>
+      </dl>
+    </Card>
+
+    <Card>
+      <div className="flex items-start gap-3"><span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-lime-100 text-lime-900"><Milk size={22} aria-hidden="true" /></span><div className="min-w-0 flex-1"><p className="text-sm font-bold uppercase tracking-wide text-stone-500">Producción individual</p>{latestMilk ? <><div className="mt-1 flex flex-wrap items-baseline gap-x-2"><p className="text-3xl font-black tracking-tight text-stone-950">{latestMilk.liters.toFixed(1)} L</p><p className="text-sm font-semibold text-stone-500">último control</p></div><p className="mt-1 text-sm text-stone-600">{formatFarmDate(latestMilk.date)}{priorMilk ? ` · ${latestMilk.liters >= priorMilk.liters ? "+" : ""}${(latestMilk.liters - priorMilk.liters).toFixed(1)} L frente al anterior` : ""}</p></> : <><p className="mt-1 text-lg font-black text-stone-950">Aún sin controles</p><p className="mt-1 text-sm leading-snug text-stone-600">Cuando anotes litros por vaca, aquí verás cómo cambia su producción.</p></>}</div></div>{milkTrend.length >= 2 ? <div className="mt-4 text-lime-700"><TrendSparkline points={milkTrend.map((point) => ({ label: point.date, value: point.liters }))} ariaLabel={`Tendencia de producción de ${animal.name}: ${milkTrend.length} controles individuales`} /></div> : null}</Card>
+
+    {onArchive ? <Button type="button" className="w-full bg-red-50 text-red-900 ring-1 ring-red-100" onClick={onArchive}><Archive size={20} aria-hidden="true" />Sacar de la lista</Button> : null}
+  </div>;
+};
+
 export const AnimalDetail = ({ animal, groups, session, initialSection = "general", onClose, onEdit, onArchive }: { animal: Animal; groups: HerdGroup[]; session: FarmSession; initialSection?: DetailSection; onClose: () => void; onEdit: () => void; onArchive?: () => void }) => {
   const [section, setSection] = useState<DetailSection>(initialSection);
   const sexLabel = animal.sex === "female" ? "Hembra" : animal.sex === "male" ? "Macho" : "Sexo pendiente";
   const groupName = groups.find((group) => group.id === animal.herdGroupId)?.name ?? groups[0]?.name ?? "Sin grupo";
-  return <div className={screenShell} role="dialog" aria-modal="true" aria-label={`Ficha de ${animal.name}`}>
-    <FullScreenHeader eyebrow={groupName} title={animal.name} onClose={onClose} />
-    <div className="mx-auto max-w-2xl p-4 pb-10 pt-6 sm:p-6">
-      <section className="flex items-center gap-3 rounded-3xl border border-stone-200 bg-white p-4 shadow-[0_8px_28px_rgba(28,25,23,0.06)]"><AnimalAvatar name={animal.name} photoUrl={animal.photoUrl} size="detail" /><div className="min-w-0 flex-1"><p className="font-black text-stone-950">{sexLabel}{animal.birthDateEstimated ? " · edad estimada" : ""}</p><p className="mt-1 text-sm text-stone-600">Grupo: {groupName}</p></div><Button type="button" className="min-h-11 shrink-0 bg-stone-100 px-3 text-stone-800" onClick={onEdit} aria-label={`Editar datos de ${animal.name}`}><Pencil size={19} aria-hidden="true" /><span className="hidden sm:inline">Editar</span></Button></section>
-      <div className="mt-5"><SegmentedControl ariaLabel="Secciones de la ficha" value={section} onChange={setSection} options={[{ id: "general", label: "General" }, { id: "reproduction", label: "Reproducción" }, { id: "health", label: "Sanidad" }]} /></div>
-      <div className="mt-5">{section === "general" ? <Card><p className="text-sm font-bold uppercase tracking-wide text-stone-500">Datos generales</p><dl className="mt-4 space-y-3 text-base"><div className="flex justify-between gap-4"><dt className="text-stone-600">Grupo</dt><dd className="font-bold text-stone-950">{groupName}</dd></div><div className="flex justify-between gap-4"><dt className="text-stone-600">Sexo</dt><dd className="font-bold text-stone-950">{sexLabel}</dd></div><div className="flex justify-between gap-4"><dt className="text-stone-600">Edad</dt><dd className="font-bold text-stone-950">{animal.birthDateEstimated ? "Estimación guardada" : "Sin estimación"}</dd></div>{animal.previousCalvingCount !== undefined ? <div className="flex justify-between gap-4"><dt className="text-stone-600">Partos antes de REJO</dt><dd className="font-bold text-stone-950">{animal.previousCalvingCount}</dd></div> : null}</dl>{onArchive ? <Button type="button" className="mt-6 w-full bg-red-50 text-red-900 ring-1 ring-red-100" onClick={onArchive}><Archive size={20} aria-hidden="true" />Sacar de la lista</Button> : null}</Card> : section === "reproduction" ? <ReproductionPanel animal={animal} session={session} /> : <HealthPanel animal={animal} session={session} />}</div>
+  useDetailScrollLock();
+
+  return <div className={`${screenShell} isolate`} role="dialog" aria-modal="true" aria-label={`Ficha de ${animal.name}`}>
+    <section className="relative mx-auto max-w-2xl overflow-hidden bg-lime-950">
+      {animal.photoUrl ? <img className="h-[min(46svh,26rem)] min-h-72 w-full object-cover" src={animal.photoUrl} alt={`Foto de ${animal.name}`} /> : <div className="flex h-72 items-center justify-center bg-[radial-gradient(circle_at_72%_24%,#84cc16,transparent_36%),linear-gradient(145deg,#365314,#14532d)] text-lime-100"><Beef size={96} strokeWidth={1.25} aria-hidden="true" /></div>}
+      <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/10 to-black/25" />
+      <div className="absolute inset-x-0 top-0 flex items-center justify-between gap-3 p-4 pt-[max(1rem,env(safe-area-inset-top))] sm:p-6">
+        <Button type="button" className="min-h-11 bg-white/95 px-3 text-stone-900 shadow-lg hover:bg-white" onClick={onClose} aria-label="Cerrar ficha"><X size={20} aria-hidden="true" /></Button>
+        <Button type="button" className="min-h-11 bg-white/95 px-3 text-stone-900 shadow-lg hover:bg-white" onClick={onEdit} aria-label={`Editar datos de ${animal.name}`}><Pencil size={19} aria-hidden="true" /><span className="hidden sm:inline">Editar</span></Button>
+      </div>
+      <div className="absolute inset-x-0 bottom-0 p-5 pb-6 text-white sm:p-6">
+        <p className="text-sm font-bold uppercase tracking-[0.16em] text-lime-200">{groupName}</p>
+        <h1 className="mt-1 break-words text-4xl font-black tracking-tight sm:text-5xl">{animal.name}</h1>
+        <p className="mt-2 text-base font-semibold text-stone-100">{sexLabel}{animal.birthDateEstimated ? " · edad estimada" : ""}</p>
+      </div>
+    </section>
+
+    <div className="mx-auto max-w-2xl p-4 pb-10 sm:p-6">
+      <div className="sticky top-0 z-20 -mx-4 border-b border-stone-200 bg-stone-100/95 px-4 py-3 backdrop-blur sm:-mx-6 sm:px-6">
+        <SegmentedControl ariaLabel="Secciones de la ficha" value={section} onChange={setSection} options={[{ id: "general", label: "General" }, { id: "reproduction", label: "Reproducción" }, { id: "health", label: "Sanidad" }]} />
+      </div>
+      <div className="pt-5">{section === "general" ? <GeneralPanel animal={animal} groupName={groupName} onArchive={onArchive} /> : section === "reproduction" ? <ReproductionPanel animal={animal} session={session} /> : <HealthPanel animal={animal} session={session} />}</div>
     </div>
   </div>;
 };
