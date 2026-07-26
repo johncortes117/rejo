@@ -1,12 +1,10 @@
-import { createHash, randomBytes } from "node:crypto";
+import { createHash } from "node:crypto";
 import { createClient } from "@supabase/supabase-js";
 
 const SUPABASE_URL = process.env.VITE_SUPABASE_URL;
 const SUPABASE_ANON_KEY = process.env.VITE_SUPABASE_ANON_KEY;
-const DEMO_EMAIL = process.env.REJO_DEMO_EMAIL ?? "demo.finca@rejo.test";
-const suppliedPassword = process.env.REJO_DEMO_PASSWORD;
-const DEMO_PASSWORD = suppliedPassword ?? `Rejo-${randomBytes(12).toString("base64url")}`;
-const generatedPassword = !suppliedPassword;
+const DEMO_EMAIL = process.env.REJO_DEMO_EMAIL ?? "test@gmail.com";
+const DEMO_PASSWORD = process.env.REJO_DEMO_PASSWORD ?? "12345678";
 const FARM_TIMEZONE = "America/Guayaquil";
 
 if (!SUPABASE_URL || !SUPABASE_ANON_KEY) {
@@ -539,7 +537,7 @@ const seed = async () => {
     farmId,
     businessDate: today,
     email: DEMO_EMAIL,
-    password: generatedPassword ? DEMO_PASSWORD : "Provided through REJO_DEMO_PASSWORD",
+    password: DEMO_PASSWORD,
     counts
   }, null, 2));
 };

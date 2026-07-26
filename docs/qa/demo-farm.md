@@ -13,7 +13,12 @@ The seed uses stable IDs and upserts, so running it again refreshes the same dat
 
 ## Credentials
 
-The first run prints the demo email and generated password. Store that password outside the repository. To refresh an existing demo account, set `REJO_DEMO_PASSWORD` before running the command:
+The demo account uses these default credentials:
+
+- Email: `test@gmail.com`
+- Password: `12345678`
+
+You can still override either value with environment variables if you need a different test account. To refresh an existing demo account with the same password, set `REJO_DEMO_PASSWORD` before running the command:
 
 ```powershell
 $env:REJO_DEMO_PASSWORD = "the-existing-demo-password"

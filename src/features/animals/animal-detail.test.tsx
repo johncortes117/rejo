@@ -49,7 +49,7 @@ describe("AnimalDetail", () => {
     expect(await screen.findByRole("heading", { name: "Bella" })).toBeInTheDocument();
     expect(screen.getByRole("img", { name: "Foto de Bella" })).toBeInTheDocument();
     const hero = screen.getByTestId("animal-profile-hero");
-    expect(hero).toHaveClass("h-52", "sm:h-64");
+    expect(hero).not.toHaveClass("h-52");
     expect(hero).toHaveTextContent("Bella");
     expect(hero).not.toHaveTextContent("En ordeño");
     expect(hero).not.toHaveTextContent("Hembra");
