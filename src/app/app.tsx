@@ -34,6 +34,23 @@ const farmProvisionSchema = z.object({
 });
 type FarmProvisionForm = z.infer<typeof farmProvisionSchema>;
 
+const useOnlineStatus = (): boolean => {
+  const [isOnline, setIsOnline] = useState(() => navigator.onLine);
+
+  useEffect(() => {
+    const markOnline = () => setIsOnline(true);
+    const markOffline = () => setIsOnline(false);
+    window.addEventListener("online", markOnline);
+    window.addEventListener("offline", markOffline);
+    return () => {
+      window.removeEventListener("online", markOnline);
+      window.removeEventListener("offline", markOffline);
+    };
+  }, []);
+
+  return isOnline;
+};
+
 interface ProvisioningPageProps {
   onProvisioned: (session: FarmSession) => void;
   userId?: string;
@@ -222,7 +239,7 @@ const Navigation = ({ currentPage, onNavigate }: NavigationProps) => {
   );
 };
 
-const AppShell = ({ session, onSignOut }: { session: FarmSession; onSignOut?: () => Promise<void> }) => {
+const AppShell = ({ session, onSignOut, offlineAccess = false }: { session: FarmSession; onSignOut?: () => Promise<void>; offlineAccess?: boolean }) => {
   const [page, setPage] = useState<Page>("home");
   const [returnPage, setReturnPage] = useState<Page>("home");
   const [syncStatus, setSyncStatus] = useState<SyncStatus>();
@@ -288,7 +305,7 @@ const AppShell = ({ session, onSignOut }: { session: FarmSession; onSignOut?: ()
   return (
     <div className="mx-auto flex min-h-screen max-w-2xl flex-col bg-transparent">
       <header className="flex min-h-16 items-center justify-between gap-3 bg-lime-950 px-4 py-3 text-white sm:px-6">
-        <p className="text-xl font-black tracking-wide">REJO</p>
+        <div className="flex min-w-0 items-center gap-2"><p className="text-xl font-black tracking-wide">REJO</p>{offlineAccess ? <span className="rounded-full bg-lime-900 px-2.5 py-1 text-xs font-bold text-lime-100">Sin señal</span> : null}</div>
         {canBackUp ? (
           <button
             className="inline-flex min-h-11 shrink-0 items-center gap-2 rounded-xl bg-white px-3 text-sm font-bold text-lime-950 disabled:opacity-60"
@@ -456,10 +473,12 @@ const SupabaseSignInPage = () => {
 };
 
 const ConfiguredApp = () => {
+  const isOnline = useOnlineStatus();
   const [authSession, setAuthSession] = useState<Session | null | undefined>(undefined);
   const [farmSession, setFarmSession] = useState<FarmSession | null>(() => readFarmSession());
   const [farmLookup, setFarmLookup] = useState<RemoteFarmSessionResult | { state: "loading" }>();
   const [farmLookupAttempt, setFarmLookupAttempt] = useState(0);
+  const [authLookupFailed, setAuthLookupFailed] = useState(false);
   const authUserId = authSession?.user.id;
   const signOut = useCallback(async () => {
     if (!supabase) {
@@ -477,17 +496,32 @@ const ConfiguredApp = () => {
   }, []);
 
   useEffect(() => {
-    if (!supabase) {
+    if (!supabase || !isOnline) {
       return;
     }
 
-    void supabase.auth.getSession().then(({ data }) => setAuthSession(data.session));
+    let cancelled = false;
+    setAuthLookupFailed(false);
+    void supabase.auth.getSession().then(({ data, error }) => {
+      if (cancelled) return;
+      setAuthLookupFailed(Boolean(error));
+      setAuthSession(data.session);
+    }).catch(() => {
+      if (!cancelled) {
+        setAuthLookupFailed(true);
+        setAuthSession(null);
+      }
+    });
     const { data } = supabase.auth.onAuthStateChange((_event, nextSession) => {
       setAuthSession(nextSession);
+      setAuthLookupFailed(false);
     });
 
-    return () => data.subscription.unsubscribe();
-  }, []);
+    return () => {
+      cancelled = true;
+      data.subscription.unsubscribe();
+    };
+  }, [isOnline]);
 
   useEffect(() => {
     const configuredSupabase = supabase;
@@ -537,6 +571,12 @@ const ConfiguredApp = () => {
     };
   }, [authUserId, farmLookupAttempt]);
 
+  const canUseSavedFarm = Boolean(farmSession && (!isOnline || authLookupFailed));
+
+  if (canUseSavedFarm) {
+    return <AppShell session={farmSession!} offlineAccess={!isOnline} />;
+  }
+
   if (authSession === undefined) {
     return <main className="p-5"><Notice tone="info">Preparando el acceso…</Notice></main>;
   }
@@ -563,7 +603,7 @@ const ConfiguredApp = () => {
     );
   }
 
-  return <AppShell session={farmSession} onSignOut={signOut} />;
+  return <AppShell session={farmSession} onSignOut={signOut} offlineAccess={!isOnline} />;
 };
 
 const ConfiguredAppBootstrap = () => {

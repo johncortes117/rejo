@@ -75,6 +75,27 @@ afterEach(async () => {
 });
 
 describe("backup feedback", () => {
+  it("opens the locally saved farm when the installed app starts without signal", async () => {
+    Object.defineProperty(navigator, "onLine", { configurable: true, value: false });
+    supabaseMock.auth.getSession.mockResolvedValue({ data: { session: null } });
+    syncPendingOperationsMock.mockResolvedValue({ state: "offline", processed: 0 });
+
+    render(<App />);
+
+    expect(await screen.findByRole("heading", { name: "La finca, al día." })).toBeInTheDocument();
+    expect(screen.queryByRole("heading", { name: "Entrar a la finca" })).not.toBeInTheDocument();
+    expect(screen.getByText("Sin señal")).toBeInTheDocument();
+    expect(supabaseMock.auth.getSession).not.toHaveBeenCalled();
+  });
+
+  it("still requires sign-in online when there is no valid session", async () => {
+    supabaseMock.auth.getSession.mockResolvedValue({ data: { session: null } });
+
+    render(<App />);
+
+    expect(await screen.findByRole("heading", { name: "Entrar a la finca" })).toBeInTheDocument();
+  });
+
   it("shows that pending records are actively being backed up", async () => {
     syncPendingOperationsMock.mockReturnValue(new Promise(() => undefined));
 
