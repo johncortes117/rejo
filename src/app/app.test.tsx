@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 
 vi.mock("@/sync/supabase", () => ({
   isSupabaseConfigured: false,
@@ -246,7 +246,9 @@ describe("Phase 0 daily flow", () => {
     fireEvent.click(screen.getByRole("button", { name: "Buscar animal" }));
     fireEvent.change(screen.getByRole("textbox", { name: "Buscar por nombre" }), { target: { value: "Lucero" } });
     await screen.findByText("Lucero");
-    expect(screen.getByText("Hembra · En ordeño")).toBeInTheDocument();
+    const luceroRow = screen.getByRole("button", { name: "Abrir ficha de Lucero" });
+    expect(within(luceroRow).getByText("En ordeño")).toBeInTheDocument();
+    expect(within(luceroRow).queryByText("Hembra")).not.toBeInTheDocument();
     expect(screen.getByRole("img", { name: "Foto de Lucero" })).toHaveAttribute("src", "data:image/jpeg;base64,cGhvdG8=");
   });
 

@@ -26,7 +26,7 @@ export const AnimalPhotoFrame = ({
   alt?: string;
   onClick?: () => void;
 }) => (
-  <div className={`relative overflow-hidden bg-stone-200 ${className}`}>
+  <div className={`overflow-hidden bg-stone-200 ${className}`}>
     <img className={`h-full w-full object-cover ${onClick ? "cursor-zoom-in" : ""}`} style={imageStyle(crop)} src={photoUrl} alt={alt ?? `Foto de ${name}`} onClick={onClick} onError={(event) => { event.currentTarget.style.display = "none"; }} />
   </div>
 );

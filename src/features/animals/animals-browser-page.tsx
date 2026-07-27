@@ -3,8 +3,10 @@ import { useLiveQuery } from "dexie-react-hooks";
 import { ArrowDown, ArrowLeft, ArrowUp, ChevronRight, CirclePlus, ClipboardPenLine, LoaderCircle, Plus, Search, SlidersHorizontal, X } from "lucide-react";
 import { Button, Card, FieldLabel, Notice, TextInput } from "@/components/ui";
 import { db } from "@/db/rejo-db";
+import { nowInFarmTimezone } from "@/domain/time";
 import type { Animal, AnimalPhotoCrop, AnimalSex, FarmSession, HerdGroup } from "@/domain/models";
 import { archiveAnimal, saveAnimal } from "@/features/animals/animals";
+import { buildAnimalListStatuses, type AnimalListStatus } from "@/features/animals/animal-list-status";
 import { AnimalAvatar, AnimalPhotoPicker } from "@/features/animals/animal-photo";
 import { AnimalDetail, AnimalEditor } from "@/features/animals/animals-page";
 import { createHerdGroup, ensureDefaultHerdGroups, renameHerdGroup, reorderHerdGroup } from "@/features/animals/herd-groups";
@@ -197,17 +199,33 @@ export const NewAnimalWizard = ({ groups, session, onClose, onSaved }: { groups:
   </div>;
 };
 
-const AnimalRow = ({ animal, groupName, showGroup, onOpen }: { animal: Animal; groupName: string; showGroup: boolean; onOpen: () => void }) => (
-  <button type="button" aria-label={`Abrir ficha de ${animal.name}`} className="flex min-h-20 w-full items-center gap-3 px-4 py-3 text-left transition hover:bg-lime-50 active:bg-lime-50 sm:px-5" onClick={onOpen}>
+const statusToneClass: Record<AnimalListStatus["tone"], string> = {
+  critical: "bg-red-50 text-red-900 ring-red-100",
+  attention: "bg-amber-50 text-amber-950 ring-amber-100",
+  positive: "bg-lime-50 text-lime-900 ring-lime-100",
+  neutral: "bg-stone-100 text-stone-700 ring-stone-200"
+};
+
+const AnimalRow = ({ animal, groupName, showGroup, statuses, onOpen }: { animal: Animal; groupName: string; showGroup: boolean; statuses: AnimalListStatus[]; onOpen: () => void }) => {
+  const visibleStatuses = showGroup ? [...statuses, { label: groupName, tone: "neutral" as const }].slice(0, 2) : statuses;
+
+  return <button type="button" aria-label={`Abrir ficha de ${animal.name}`} className="flex min-h-20 w-full items-center gap-3 px-4 py-3 text-left transition hover:bg-lime-50 active:bg-lime-50 sm:px-5" onClick={onOpen}>
     <AnimalAvatar name={animal.name} photoUrl={animal.photoUrl} crop={animal.photoCrop} />
-    <span className="min-w-0 flex-1"><span className="block truncate text-base font-black text-stone-950">{animal.name}</span><span className="mt-1 block text-sm text-stone-600">{animal.sex === "female" ? "Hembra" : animal.sex === "male" ? "Macho" : "Sexo pendiente"}{showGroup ? ` · ${groupName}` : ""}</span></span>
+    <span className="min-w-0 flex-1"><span className="block truncate text-base font-black text-stone-950">{animal.name}</span>{visibleStatuses.length ? <span className="mt-1 flex flex-wrap gap-1.5">{visibleStatuses.map((status) => <span key={`${status.tone}-${status.label}`} className={`rounded-lg px-2 py-0.5 text-xs font-bold ring-1 ${statusToneClass[status.tone]}`}>{status.label}</span>)}</span> : null}</span>
     <ChevronRight className="shrink-0 text-stone-400" size={20} aria-hidden="true" />
-  </button>
-);
+  </button>;
+};
 
 export const AnimalsBrowserPage = ({ session, onMilkControl }: AnimalsBrowserPageProps) => {
   const animals = useLiveQuery(() => db.animals.filter((animal) => animal.farmId === session.farmId && !animal.deletedAt).sortBy("name"), [session.farmId], []);
   const groups = useLiveQuery(() => db.herdGroups.filter((group) => group.farmId === session.farmId && !group.deletedAt).sortBy("sortOrder"), [session.farmId], []);
+  const healthEvents = useLiveQuery(() => db.healthEvents.filter((event) => event.farmId === session.farmId && !event.deletedAt).toArray(), [session.farmId], []);
+  const heats = useLiveQuery(() => db.heats.filter((event) => event.farmId === session.farmId && !event.deletedAt).toArray(), [session.farmId], []);
+  const services = useLiveQuery(() => db.services.filter((event) => event.farmId === session.farmId && !event.deletedAt).toArray(), [session.farmId], []);
+  const pregnancyChecks = useLiveQuery(() => db.pregnancyChecks.filter((event) => event.farmId === session.farmId && !event.deletedAt).toArray(), [session.farmId], []);
+  const calvings = useLiveQuery(() => db.calvings.filter((event) => event.farmId === session.farmId && !event.deletedAt).toArray(), [session.farmId], []);
+  const milkControlSessions = useLiveQuery(() => db.milkControlSessions.filter((event) => event.farmId === session.farmId && !event.deletedAt).toArray(), [session.farmId], []);
+  const milkControlRecords = useLiveQuery(() => db.milkControlRecords.filter((event) => event.farmId === session.farmId && !event.deletedAt).toArray(), [session.farmId], []);
   const [activeGroupId, setActiveGroupId] = useState<string>();
   const [selectedAnimal, setSelectedAnimal] = useState<Animal>();
   const [editedAnimal, setEditedAnimal] = useState<Animal>();
@@ -229,6 +247,9 @@ export const AnimalsBrowserPage = ({ session, onMilkControl }: AnimalsBrowserPag
   const visibleDetail = normalizedQuery ? `${visibleAnimals.length} ${visibleAnimals.length === 1 ? "animal encontrado" : "animales encontrados"}` : `${visibleAnimals.length} ${visibleAnimals.length === 1 ? "animal" : "animales"}`;
   const groupNameFor = (animal: Animal) => groups.find((group) => group.id === groupForAnimal(animal, groups))?.name ?? "Sin grupo";
   const groupCount = (groupId: string) => animals.filter((animal) => groupForAnimal(animal, groups) === groupId).length;
+  const today = nowInFarmTimezone().date;
+  const currentTime = new Date();
+  const statusesFor = (animal: Animal) => buildAnimalListStatuses({ animal, asOf: today, now: currentTime, healthEvents, heats, services, pregnancyChecks, calvings, milkControlSessions, milkControlRecords });
 
   const finishCreate = (nextMessage: string) => { setIsCreating(false); setMessage(nextMessage); };
   const archive = async (animal: Animal) => {
@@ -264,7 +285,7 @@ export const AnimalsBrowserPage = ({ session, onMilkControl }: AnimalsBrowserPag
 
     <section aria-labelledby="animal-list-title">
       <div className="flex items-end justify-between gap-3 px-1"><div><p className="text-sm font-bold uppercase tracking-wide text-stone-500">{normalizedQuery ? "Buscar en el rejo" : "Lista del grupo"}</p><h2 id="animal-list-title" className="mt-1 text-xl font-black text-stone-950">{visibleTitle}</h2></div><div className="flex items-center gap-1"><span className="text-sm font-semibold text-stone-500">{visibleDetail}</span>{onMilkControl ? <button type="button" className="inline-flex min-h-10 items-center gap-1.5 rounded-xl px-2 text-sm font-bold text-lime-800" onClick={onMilkControl}><ClipboardPenLine size={17} aria-hidden="true" /><span className="hidden sm:inline">Control</span></button> : null}</div></div>
-      <div className="mt-3 overflow-hidden rounded-3xl border border-stone-200 bg-white shadow-[0_8px_28px_rgba(28,25,23,0.06)]">{visibleAnimals.length === 0 ? <div className="p-5"><p className="font-black text-stone-950">{normalizedQuery ? "No encontramos ese animal." : "Este grupo está vacío."}</p><p className="mt-1 text-sm leading-snug text-stone-600">{normalizedQuery ? "Prueba con otro nombre o abre el grupo donde está registrado." : "Agrega un animal y primero elige el grupo al que se integra."}</p></div> : visibleAnimals.map((animal, index) => <div key={animal.id} className={index ? "border-t border-stone-100" : ""}><AnimalRow animal={animal} groupName={groupNameFor(animal)} showGroup={Boolean(normalizedQuery)} onOpen={() => setSelectedAnimal(animal)} /></div>)}</div>
+      <div className="mt-3 overflow-hidden rounded-3xl border border-stone-200 bg-white shadow-[0_8px_28px_rgba(28,25,23,0.06)]">{visibleAnimals.length === 0 ? <div className="p-5"><p className="font-black text-stone-950">{normalizedQuery ? "No encontramos ese animal." : "Este grupo está vacío."}</p><p className="mt-1 text-sm leading-snug text-stone-600">{normalizedQuery ? "Prueba con otro nombre o abre el grupo donde está registrado." : "Agrega un animal y primero elige el grupo al que se integra."}</p></div> : visibleAnimals.map((animal, index) => <div key={animal.id} className={index ? "border-t border-stone-100" : ""}><AnimalRow animal={animal} groupName={groupNameFor(animal)} showGroup={Boolean(normalizedQuery)} statuses={statusesFor(animal)} onOpen={() => setSelectedAnimal(animal)} /></div>)}</div>
     </section>
 
     {selectedAnimal ? <AnimalDetail animal={selectedAnimal} groups={groups} session={session} onClose={() => setSelectedAnimal(undefined)} onEdit={() => { setEditedAnimal(selectedAnimal); setSelectedAnimal(undefined); }} onArchive={() => void archive(selectedAnimal)} /> : null}

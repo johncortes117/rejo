@@ -23,9 +23,8 @@ export const AnimalAvatar = ({
     preview: "h-24 w-24 rounded-2xl text-3xl"
   }[size];
 
-  return <span className={`relative flex shrink-0 items-center justify-center overflow-hidden bg-lime-100 font-black text-lime-950 ${sizeClasses}`}>
-    <span aria-hidden="true">{name.slice(0, 1).toUpperCase()}</span>
-    {photoUrl ? <AnimalPhotoFrame name={name} photoUrl={photoUrl} crop={crop} className="absolute inset-0" /> : null}
+  return <span data-testid="animal-avatar" className={`relative flex shrink-0 items-center justify-center overflow-hidden bg-lime-100 font-black text-lime-950 ${sizeClasses}`}>
+    {photoUrl ? <AnimalPhotoFrame name={name} photoUrl={photoUrl} crop={crop} className="absolute inset-0" /> : <span aria-hidden="true">{name.slice(0, 1).toUpperCase()}</span>}
   </span>;
 };
 

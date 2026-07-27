@@ -502,7 +502,7 @@ export const AnimalDetail = ({ animal, groups, session, initialSection = "genera
 
   return <div className={`${screenShell} isolate`} role="dialog" aria-modal="true" aria-label={`Ficha de ${animal.name}`}>
     <section data-testid="animal-profile-hero" className="mx-auto max-w-2xl bg-lime-950">
-      {animal.photoUrl ? <button type="button" className="block w-full text-left" onClick={() => setIsPhotoViewerOpen(true)} aria-label={`Ver foto completa de ${animal.name}`}><AnimalPhotoFrame name={animal.name} photoUrl={animal.photoUrl} crop={animal.photoCrop} className="aspect-[4/3] w-full" /></button> : <div className="flex h-72 items-center justify-center bg-[radial-gradient(circle_at_72%_24%,#84cc16,transparent_36%),linear-gradient(145deg,#365314,#14532d)] text-lime-100"><Beef size={96} strokeWidth={1.25} aria-hidden="true" /></div>}
+      {animal.photoUrl ? <button type="button" className="block w-full text-left" onClick={() => setIsPhotoViewerOpen(true)} aria-label={`Ver foto completa de ${animal.name}`}><AnimalPhotoFrame name={animal.name} photoUrl={animal.photoUrl} crop={animal.photoCrop} className="relative aspect-[4/3] w-full" /></button> : <div className="flex h-72 items-center justify-center bg-[radial-gradient(circle_at_72%_24%,#84cc16,transparent_36%),linear-gradient(145deg,#365314,#14532d)] text-lime-100"><Beef size={96} strokeWidth={1.25} aria-hidden="true" /></div>}
     </section>
 
     <div className="mx-auto max-w-2xl p-4 pb-10 sm:p-6">
