@@ -23,6 +23,7 @@ export interface CaptureDailyTankMeasurementInput {
   mark?: number;
   milkForCalvesLiters?: number;
   duplicateStrategy?: "reject" | "replace";
+  replaceMilkUsageIds?: string[];
   now?: Date;
 }
 
@@ -38,7 +39,8 @@ const dailyCaptureSchema = z.object({
   liters: z.number().finite().nonnegative(),
   mark: z.number().finite().nonnegative().optional(),
   milkForCalvesLiters: z.number().finite().nonnegative().optional(),
-  duplicateStrategy: z.enum(["reject", "replace"]).optional()
+  duplicateStrategy: z.enum(["reject", "replace"]).optional(),
+  replaceMilkUsageIds: z.array(z.string().min(1)).optional()
 });
 
 const activePickupReadingsForDate = (
@@ -123,6 +125,19 @@ export const captureDailyTankMeasurement = async (
           await database.syncQueue.bulkPut(
             replaced.map((item) =>
               queueSoftDelete(input.farmId, "tank_readings", item.id, toPayload(item), timestamp)
+            )
+          );
+        }
+
+        const replacementUsageIds = new Set(input.replaceMilkUsageIds ?? []);
+        const replacedMilkUsages = (await database.milkUsages.bulkGet([...replacementUsageIds]))
+          .filter((item): item is MilkUsage => Boolean(item && item.farmId === input.farmId && item.type === "calves" && !item.deletedAt))
+          .map((item) => ({ ...item, deletedAt: timestamp, updatedAt: timestamp }));
+        if (replacedMilkUsages.length > 0) {
+          await database.milkUsages.bulkPut(replacedMilkUsages);
+          await database.syncQueue.bulkPut(
+            replacedMilkUsages.map((item) =>
+              queueSoftDelete(input.farmId, "milk_usages", item.id, toPayload(item), timestamp)
             )
           );
         }

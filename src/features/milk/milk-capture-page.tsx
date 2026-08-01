@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useLiveQuery } from "dexie-react-hooks";
-import { Baby, CalendarDays, CirclePlus, Droplets, Ruler, Save, Truck } from "lucide-react";
+import { ArrowLeft, Baby, CalendarDays, CirclePlus, Droplets, History, Pencil, Ruler, Save, Truck } from "lucide-react";
 import { Button, Card, FieldLabel, Notice, TextInput } from "@/components/ui";
 import { nowInFarmTimezone } from "@/domain/time";
 import { interpolateTankLiters } from "@/domain/tank";
@@ -13,11 +13,32 @@ import {
 } from "@/features/milk/daily-capture";
 import { getMilkDashboard } from "@/features/milk/dashboard";
 import { computeMilkBalance } from "@/features/milk/balance";
+import { buildMilkHistory, type MilkHistoryEntry } from "@/features/milk/milk-history";
 
 interface MilkCapturePageProps {
   session: FarmSession;
   onSaved: () => void;
 }
+
+const formatHistoryDate = (date: string) => new Intl.DateTimeFormat("es-EC", { day: "numeric", month: "short", year: "numeric", timeZone: "UTC" }).format(new Date(`${date}T12:00:00Z`));
+
+const MilkHistoryPage = ({ entries, today, onBack, onEdit }: { entries: MilkHistoryEntry[]; today: string; onBack: () => void; onEdit: (entry: MilkHistoryEntry) => void }) => (
+  <div className="fixed inset-0 z-50 overflow-y-auto bg-stone-50" role="dialog" aria-modal="true" aria-label="Historial de medidas de leche">
+    <div className="mx-auto min-h-full max-w-2xl p-4 pb-10 pt-[max(1rem,env(safe-area-inset-top))] sm:p-6">
+      <header className="flex items-center gap-3 border-b border-stone-200 pb-4">
+        <Button type="button" className="min-h-11 shrink-0 bg-white px-3 text-stone-800 ring-1 ring-stone-200" onClick={onBack} aria-label="Volver a registrar leche"><ArrowLeft size={20} aria-hidden="true" /></Button>
+        <div><p className="text-xs font-bold uppercase tracking-[0.16em] text-lime-800">Registro diario</p><h1 className="text-2xl font-black tracking-tight text-stone-950">Historial de medidas</h1></div>
+      </header>
+
+      <div className="mt-6 space-y-3">
+        {entries.length === 0 ? <Notice tone="info">Aún no hay medidas del tanque guardadas.</Notice> : entries.map((entry) => <article key={entry.date} className="rounded-3xl border border-stone-200 bg-white p-4 shadow-[0_8px_28px_rgba(28,25,23,0.06)]">
+          <div className="flex items-start justify-between gap-3"><div><div className="flex flex-wrap items-center gap-2"><p className="font-black text-stone-950">{formatHistoryDate(entry.date)}</p>{entry.date === today ? <span className="rounded-full bg-lime-100 px-2.5 py-1 text-xs font-bold text-lime-950">Hoy</span> : null}</div><p className="mt-1 text-2xl font-black tracking-tight text-lime-900">{entry.liters.toFixed(1)} L</p></div><Button type="button" className="min-h-10 shrink-0 bg-stone-100 px-3 py-2 text-sm text-stone-800" aria-label={`Editar medida del ${entry.date}`} onClick={() => onEdit(entry)}><Pencil size={17} aria-hidden="true" />Editar</Button></div>
+          {entry.mark !== undefined || entry.buyerLiters !== undefined || entry.calvesLiters !== undefined ? <div className="mt-4 flex flex-wrap gap-2 border-t border-stone-100 pt-3 text-sm font-semibold text-stone-600">{entry.mark !== undefined ? <span className="rounded-lg bg-stone-100 px-2.5 py-1">Regla: {entry.mark}</span> : null}{entry.buyerLiters !== undefined ? <span className="rounded-lg bg-sky-50 px-2.5 py-1 text-sky-900">Tanquero: {entry.buyerLiters.toFixed(1)} L</span> : null}{entry.calvesLiters !== undefined ? <span className="rounded-lg bg-amber-50 px-2.5 py-1 text-amber-950">Terneros: {entry.calvesLiters.toFixed(1)} L</span> : null}</div> : null}
+        </article>)}
+      </div>
+    </div>
+  </div>
+);
 
 export const MilkCapturePage = ({ session, onSaved }: MilkCapturePageProps) => {
   const { date: today } = nowInFarmTimezone();
@@ -29,6 +50,8 @@ export const MilkCapturePage = ({ session, onSaved }: MilkCapturePageProps) => {
   const [message, setMessage] = useState<string>();
   const [error, setError] = useState<string>();
   const [isSaving, setIsSaving] = useState(false);
+  const [isHistoryOpen, setIsHistoryOpen] = useState(false);
+  const [editingEntry, setEditingEntry] = useState<MilkHistoryEntry>();
   const calibrationPoints = useLiveQuery(
     () =>
       db.tankCalibrations
@@ -46,6 +69,18 @@ export const MilkCapturePage = ({ session, onSaved }: MilkCapturePageProps) => {
     [session.farmId, date],
     []
   );
+  const dateCalfUsages = useLiveQuery(
+    () => db.milkUsages.filter((usage) => usage.farmId === session.farmId && usage.date === date && usage.type === "calves" && !usage.deletedAt).toArray(),
+    [session.farmId, date],
+    []
+  );
+  const history = useLiveQuery(async () => {
+    const [readings, usages] = await Promise.all([
+      db.tankReadings.filter((reading) => reading.farmId === session.farmId && !reading.deletedAt).toArray(),
+      db.milkUsages.filter((usage) => usage.farmId === session.farmId && !usage.deletedAt).toArray()
+    ]);
+    return buildMilkHistory(readings, usages);
+  }, [session.farmId], []);
   const numericValue = Number(value);
   const interpolation =
     mode === "mark" && Number.isFinite(numericValue)
@@ -55,6 +90,18 @@ export const MilkCapturePage = ({ session, onSaved }: MilkCapturePageProps) => {
   const savedFarmLiters = dateReadings.find((reading) => reading.readBy === "farm" && reading.moment === "at_pickup")?.liters;
   const savedBuyerLiters = dateReadings.find((reading) => reading.readBy === "buyer" && reading.moment === "at_pickup")?.liters;
   const balance = computeMilkBalance(savedFarmLiters, savedBuyerLiters);
+
+  const editEntry = (entry: MilkHistoryEntry) => {
+    setDate(entry.date);
+    setMode(entry.mark === undefined ? "liters" : "mark");
+    setValue(String(entry.mark ?? entry.liters));
+    setCalvesLiters(entry.calvesLiters === undefined ? "" : String(entry.calvesLiters));
+    setBuyerLiters(entry.buyerLiters === undefined ? "" : String(entry.buyerLiters));
+    setEditingEntry(entry);
+    setError(undefined);
+    setMessage(undefined);
+    setIsHistoryOpen(false);
+  };
 
   const save = async (duplicateStrategy: "reject" | "replace" = "reject") => {
     setError(undefined);
@@ -84,15 +131,17 @@ export const MilkCapturePage = ({ session, onSaved }: MilkCapturePageProps) => {
         liters,
         mark: mode === "mark" ? numericValue : undefined,
         milkForCalvesLiters: calvesLiters ? Number(calvesLiters) : undefined,
-        duplicateStrategy
+        duplicateStrategy: editingEntry ? "replace" : duplicateStrategy,
+        replaceMilkUsageIds: (editingEntry || duplicateStrategy === "replace") ? dateCalfUsages.map((usage) => usage.id) : undefined
       });
       if (buyerLiters) {
         await recordBuyerTankReading(db, { farmId: session.farmId, userId: session.userId, date, liters: Number(buyerLiters) });
       }
-      setMessage("Guardado en el celular.");
+      setMessage(editingEntry ? "Medida actualizada en el celular." : "Guardado en el celular.");
       setValue("");
       setCalvesLiters("");
       setBuyerLiters("");
+      setEditingEntry(undefined);
       onSaved();
     } catch (caught) {
       if (caught instanceof DuplicateTankReadingError) {
@@ -112,17 +161,16 @@ export const MilkCapturePage = ({ session, onSaved }: MilkCapturePageProps) => {
     }
   };
 
-  return (
+  return <>
     <div className="space-y-6">
-      <div className="px-1">
-        <p className="flex items-center gap-1.5 text-sm font-bold uppercase tracking-[0.16em] text-lime-800"><Droplets size={16} aria-hidden="true" />Registro diario</p>
-        <h1 className="mt-1 text-3xl font-black tracking-tight text-stone-950">Anotar la leche</h1>
-      </div>
+      <header className="flex items-end justify-between gap-3 px-1"><div><p className="flex items-center gap-1.5 text-sm font-bold uppercase tracking-[0.16em] text-lime-800"><Droplets size={16} aria-hidden="true" />Registro diario</p><h1 className="mt-1 text-3xl font-black tracking-tight text-stone-950">Anotar la leche</h1></div><Button type="button" className="min-h-11 shrink-0 bg-white px-3 py-2 text-sm text-stone-800 ring-1 ring-stone-200" onClick={() => setIsHistoryOpen(true)}><History size={18} aria-hidden="true" />Historial</Button></header>
 
       {message ? <Notice tone="success">{message}</Notice> : null}
       {error ? <Notice tone="error">{error}</Notice> : null}
 
       <Card>
+        <div className="flex items-center gap-3 rounded-2xl border border-lime-200 bg-lime-50 p-3"><CalendarDays className="shrink-0 text-lime-800" size={20} aria-hidden="true" /><div className="min-w-0 flex-1"><label htmlFor="milk-measurement-date" className="block text-sm font-black text-lime-950">Fecha de la medida</label><p className="mt-0.5 text-xs font-semibold text-lime-800">{date === today ? "Hoy" : "Fecha elegida"}</p></div><TextInput id="milk-measurement-date" className="min-h-10 w-36 shrink-0 bg-white px-2 text-sm font-bold" type="date" value={date} disabled={Boolean(editingEntry)} onChange={(event) => setDate(event.target.value)} /></div>
+        {editingEntry ? <div className="mt-4 flex items-center justify-between gap-3 rounded-2xl bg-sky-50 px-3 py-2 text-sm font-semibold text-sky-950"><span>Corrigiendo la medida del {formatHistoryDate(editingEntry.date)}.</span><button type="button" className="shrink-0 font-black underline" onClick={() => setEditingEntry(undefined)}>Cancelar</button></div> : null}
         <div className="grid grid-cols-2 gap-2 rounded-2xl bg-stone-100 p-1.5">
           <Button
             type="button"
@@ -180,10 +228,6 @@ export const MilkCapturePage = ({ session, onSaved }: MilkCapturePageProps) => {
               <FieldLabel><span className="inline-flex items-center gap-1.5"><Baby size={16} aria-hidden="true" />Litros para terneros</span></FieldLabel>
               <TextInput inputMode="decimal" min="0" step="0.1" type="number" value={calvesLiters} onChange={(event) => setCalvesLiters(event.target.value)} placeholder="Ejemplo: 4" />
             </div>
-            <div>
-              <FieldLabel><span className="inline-flex items-center gap-1.5"><CalendarDays size={16} aria-hidden="true" />Fecha</span></FieldLabel>
-              <TextInput type="date" value={date} onChange={(event) => setDate(event.target.value)} />
-            </div>
           </div>
         </details>
 
@@ -196,9 +240,10 @@ export const MilkCapturePage = ({ session, onSaved }: MilkCapturePageProps) => {
           onClick={() => void save()}
         >
           <Save size={20} aria-hidden="true" />
-          {isSaving ? "Guardando…" : "Guardar la medida"}
+          {isSaving ? "Guardando…" : editingEntry ? "Guardar cambios" : "Guardar la medida"}
         </Button>
       </Card>
     </div>
-  );
+    {isHistoryOpen ? <MilkHistoryPage entries={history} today={today} onBack={() => setIsHistoryOpen(false)} onEdit={editEntry} /> : null}
+  </>;
 };

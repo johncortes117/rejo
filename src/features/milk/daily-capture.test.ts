@@ -66,6 +66,30 @@ describe("captureDailyTankMeasurement", () => {
     expect(activeReadings).toMatchObject([{ liters: 207 }]);
   });
 
+  it("replaces the linked calf milk use when a saved measurement is corrected", async () => {
+    const database = createDatabase();
+    const first = await captureDailyTankMeasurement(database, {
+      farmId: "farm-1",
+      userId: "user-1",
+      date: "2026-07-24",
+      liters: 205,
+      milkForCalvesLiters: 4,
+      now: new Date("2026-07-24T12:00:00-05:00")
+    });
+
+    await captureDailyTankMeasurement(database, {
+      farmId: "farm-1",
+      userId: "user-1",
+      date: "2026-07-24",
+      liters: 207,
+      duplicateStrategy: "replace",
+      replaceMilkUsageIds: [first.milkUsage!.id],
+      now: new Date("2026-07-24T12:05:00-05:00")
+    });
+
+    expect(await database.milkUsages.filter((item) => !item.deletedAt).toArray()).toEqual([]);
+  });
+
   it("calculates a seven-day average without deleted records or another farm", async () => {
     const database = createDatabase();
     const now = new Date("2026-07-24T12:00:00-05:00");
