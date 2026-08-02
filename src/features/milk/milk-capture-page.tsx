@@ -90,6 +90,7 @@ export const MilkCapturePage = ({ session, onSaved }: MilkCapturePageProps) => {
   const savedFarmLiters = dateReadings.find((reading) => reading.readBy === "farm" && reading.moment === "at_pickup")?.liters;
   const savedBuyerLiters = dateReadings.find((reading) => reading.readBy === "buyer" && reading.moment === "at_pickup")?.liters;
   const balance = computeMilkBalance(savedFarmLiters, savedBuyerLiters);
+  const dateCaption = date === today ? `Hoy · ${formatHistoryDate(date)}` : formatHistoryDate(date);
 
   const editEntry = (entry: MilkHistoryEntry) => {
     setDate(entry.date);
@@ -162,51 +163,21 @@ export const MilkCapturePage = ({ session, onSaved }: MilkCapturePageProps) => {
   };
 
   return <>
-    <div className="space-y-6">
-      <header className="flex items-end justify-between gap-3 px-1"><div><p className="flex items-center gap-1.5 text-sm font-bold uppercase tracking-[0.16em] text-lime-800"><Droplets size={16} aria-hidden="true" />Registro diario</p><h1 className="mt-1 text-3xl font-black tracking-tight text-stone-950">Anotar la leche</h1></div><Button type="button" className="min-h-11 shrink-0 bg-white px-3 py-2 text-sm text-stone-800 ring-1 ring-stone-200" onClick={() => setIsHistoryOpen(true)}><History size={18} aria-hidden="true" />Historial</Button></header>
+    <div className="space-y-5 pb-24">
+      <header className="flex items-start justify-between gap-3 px-1"><div><p className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-[0.16em] text-lime-800"><Droplets size={16} aria-hidden="true" />Medida del tanque</p><h1 className="mt-1 text-3xl font-black tracking-tight text-stone-950">Registrar leche</h1></div><Button type="button" className="min-h-11 shrink-0 rounded-xl bg-white px-3 py-2 text-sm text-stone-800 ring-1 ring-stone-200" onClick={() => setIsHistoryOpen(true)}><History size={18} aria-hidden="true" />Historial</Button></header>
 
       {message ? <Notice tone="success">{message}</Notice> : null}
       {error ? <Notice tone="error">{error}</Notice> : null}
 
       <Card>
-        <div className="flex items-center gap-3 rounded-2xl border border-lime-200 bg-lime-50 p-3"><CalendarDays className="shrink-0 text-lime-800" size={20} aria-hidden="true" /><div className="min-w-0 flex-1"><label htmlFor="milk-measurement-date" className="block text-sm font-black text-lime-950">Fecha de la medida</label><p className="mt-0.5 text-xs font-semibold text-lime-800">{date === today ? "Hoy" : "Fecha elegida"}</p></div><TextInput id="milk-measurement-date" className="min-h-10 w-36 shrink-0 bg-white px-2 text-sm font-bold" type="date" value={date} disabled={Boolean(editingEntry)} onChange={(event) => setDate(event.target.value)} /></div>
-        {editingEntry ? <div className="mt-4 flex items-center justify-between gap-3 rounded-2xl bg-sky-50 px-3 py-2 text-sm font-semibold text-sky-950"><span>Corrigiendo la medida del {formatHistoryDate(editingEntry.date)}.</span><button type="button" className="shrink-0 font-black underline" onClick={() => setEditingEntry(undefined)}>Cancelar</button></div> : null}
-        <div className="grid grid-cols-2 gap-2 rounded-2xl bg-stone-100 p-1.5">
-          <Button
-            type="button"
-            className={mode === "liters" ? "bg-lime-700 text-white shadow-sm" : "text-stone-600"}
-            onClick={() => setMode("liters")}
-          >
-            <Droplets size={19} aria-hidden="true" />
-            Litros
-          </Button>
-          <Button
-            type="button"
-            disabled={calibrationPoints.length === 0}
-            className={mode === "mark" ? "bg-lime-700 text-white shadow-sm" : "text-stone-600"}
-            onClick={() => setMode("mark")}
-          >
-            <Ruler size={19} aria-hidden="true" />
-            Marca de regla
-          </Button>
-        </div>
+          <section className="rounded-2xl border border-lime-200 bg-lime-50 p-3.5">
+          <div className="flex items-center gap-3"><span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-white text-lime-800 shadow-sm"><CalendarDays size={20} aria-hidden="true" /></span><div className="min-w-0"><label htmlFor="milk-measurement-date" className="block text-sm font-black text-lime-950">Fecha de la medida</label><p className="mt-0.5 text-sm font-semibold text-lime-800">{dateCaption}</p></div></div>
+          <TextInput id="milk-measurement-date" className="mt-3 min-h-12 min-w-0 bg-white px-3 text-base font-bold" type="date" value={date} disabled={Boolean(editingEntry)} onChange={(event) => setDate(event.target.value)} />
+        </section>
+        {editingEntry ? <div className="mt-3 flex items-center justify-between gap-3 rounded-2xl bg-sky-50 px-3 py-2.5 text-sm font-semibold text-sky-950"><span>Corrigiendo la medida del {formatHistoryDate(editingEntry.date)}.</span><button type="button" className="shrink-0 font-black underline" onClick={() => setEditingEntry(undefined)}>Cancelar</button></div> : null}
+        <section className="mt-5"><p className="px-1 text-xs font-bold uppercase tracking-[0.14em] text-stone-500">¿Cómo la mediste?</p><div className="mt-2 grid grid-cols-2 gap-2 rounded-2xl bg-stone-100 p-1.5"><button type="button" aria-pressed={mode === "liters"} className={`inline-flex min-h-12 items-center justify-center gap-2 rounded-xl px-3 text-sm font-black transition focus:outline-none focus:ring-4 focus:ring-lime-200 ${mode === "liters" ? "bg-lime-700 text-white shadow-sm" : "text-stone-600"}`} onClick={() => setMode("liters")}><Droplets size={18} aria-hidden="true" />Litros</button><button type="button" aria-label="Registrar por marca de regla" aria-pressed={mode === "mark"} disabled={calibrationPoints.length === 0} className={`inline-flex min-h-12 items-center justify-center gap-2 rounded-xl px-3 text-sm font-black transition focus:outline-none focus:ring-4 focus:ring-lime-200 disabled:cursor-not-allowed disabled:opacity-45 ${mode === "mark" ? "bg-lime-700 text-white shadow-sm" : "text-stone-600"}`} onClick={() => setMode("mark")}><Ruler size={18} aria-hidden="true" />Regla</button></div>{calibrationPoints.length === 0 ? <p className="mt-2 px-1 text-xs font-semibold leading-snug text-stone-500">La opción Regla se activa al cargar la tabla de aforo.</p> : null}</section>
 
-        {calibrationPoints.length === 0 ? <p className="mt-4 text-sm font-medium text-stone-500">La regla se habilita cuando cargues la tabla de aforo.</p> : null}
-
-        <div className="mt-6">
-          <FieldLabel>{mode === "liters" ? "¿Cuántos litros?" : "¿Qué marca dio la regla?"}</FieldLabel>
-          <TextInput
-            autoFocus
-            className="min-h-20 text-3xl font-black"
-            inputMode="decimal"
-            min="0"
-            step="0.1"
-            type="number"
-            value={value}
-            onChange={(event) => setValue(event.target.value)}
-            placeholder={mode === "liters" ? "Ejemplo: 205" : "Ejemplo: 34.5"}
-          />
-        </div>
+        <section className="mt-5"><label htmlFor="milk-measurement-value" className="px-1 text-xs font-bold uppercase tracking-[0.14em] text-stone-500">{mode === "liters" ? "Medida del tanque" : "Marca de la regla"}</label><div className="relative mt-2"><TextInput id="milk-measurement-value" autoFocus className="min-h-24 border-2 border-lime-300 bg-white px-5 pr-16 text-4xl font-black tracking-tight placeholder:text-stone-300 focus:border-lime-700" inputMode="decimal" min="0" step="0.1" type="number" value={value} onChange={(event) => setValue(event.target.value)} placeholder="0.0" /><span className="pointer-events-none absolute right-5 top-1/2 -translate-y-1/2 text-lg font-black text-stone-500">{mode === "liters" ? "L" : "cm"}</span></div></section>
 
         {mode === "mark" && interpolation ? (
           <Notice tone={interpolation.extrapolated ? "warning" : "success"}>
@@ -217,9 +188,9 @@ export const MilkCapturePage = ({ session, onSaved }: MilkCapturePageProps) => {
           </Notice>
         ) : null}
 
-        <details className="mt-6 rounded-2xl bg-stone-50 p-4">
-          <summary className="flex cursor-pointer items-center gap-2 text-base font-bold text-stone-700"><CirclePlus size={19} aria-hidden="true" />Agregar datos opcionales</summary>
-          <div className="mt-5 space-y-5">
+        <details className="mt-5 rounded-2xl border border-stone-200 bg-stone-50 px-4 py-3.5">
+          <summary className="flex cursor-pointer items-center gap-2 text-sm font-black text-stone-700"><CirclePlus size={19} aria-hidden="true" />Agregar datos opcionales</summary>
+          <div className="mt-4 space-y-4">
             <div>
               <FieldLabel><span className="inline-flex items-center gap-1.5"><Truck size={16} aria-hidden="true" />Litros que declaró el tanquero</span></FieldLabel>
               <TextInput inputMode="decimal" min="0" step="0.1" type="number" value={buyerLiters} onChange={(event) => setBuyerLiters(event.target.value)} placeholder="Ejemplo: 203" />

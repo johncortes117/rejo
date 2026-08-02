@@ -20,7 +20,7 @@ describe("MilkCapturePage", () => {
     render(<MilkCapturePage session={session} onSaved={vi.fn()} />);
 
     expect(screen.getByLabelText("Fecha de la medida")).toHaveValue(nowInFarmTimezone().date);
-    expect(screen.getByText("Hoy")).toBeInTheDocument();
+    expect(screen.getByText(/^Hoy ·/)).toBeInTheDocument();
   });
 
   it("opens saved measures and prepares one for correction", async () => {

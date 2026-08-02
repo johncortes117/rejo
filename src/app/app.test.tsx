@@ -63,7 +63,7 @@ describe("Phase 0 daily flow", () => {
 
     await screen.findByRole("heading", { name: "La finca, al día." });
     fireEvent.click(screen.getByRole("button", { name: "Anotar" }));
-    fireEvent.change(screen.getByPlaceholderText("Ejemplo: 205"), { target: { value: "205" } });
+    fireEvent.change(screen.getByLabelText("Medida del tanque"), { target: { value: "205" } });
     fireEvent.click(screen.getByRole("button", { name: "Guardar la medida" }));
 
     await waitFor(() =>
