@@ -20,7 +20,7 @@ describe("MilkCapturePage", () => {
     render(<MilkCapturePage session={session} onSaved={vi.fn()} />);
 
     expect(screen.getByLabelText("Fecha de medida")).toHaveValue(nowInFarmTimezone().date);
-    expect(screen.getByLabelText("Litros entregados")).toBeInTheDocument();
+    expect(screen.getByLabelText("Litros entregados")).toHaveClass("!text-6xl");
     expect(screen.queryByText("¿Cómo la mediste?")).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Regla" })).not.toBeInTheDocument();
   });
