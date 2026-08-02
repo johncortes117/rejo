@@ -20,7 +20,6 @@ export interface CaptureDailyTankMeasurementInput {
   userId: string;
   date: string;
   liters: number;
-  mark?: number;
   milkForCalvesLiters?: number;
   duplicateStrategy?: "reject" | "replace";
   replaceMilkUsageIds?: string[];
@@ -37,7 +36,6 @@ const dailyCaptureSchema = z.object({
   userId: z.string().min(1),
   date: z.iso.date(),
   liters: z.number().finite().nonnegative(),
-  mark: z.number().finite().nonnegative().optional(),
   milkForCalvesLiters: z.number().finite().nonnegative().optional(),
   duplicateStrategy: z.enum(["reject", "replace"]).optional(),
   replaceMilkUsageIds: z.array(z.string().min(1)).optional()
@@ -89,7 +87,6 @@ export const captureDailyTankMeasurement = async (
     date: input.date,
     time: localTime,
     moment: "at_pickup",
-    mark: input.mark,
     liters: Math.round(input.liters * 10) / 10,
     readBy: "farm",
     createdAt: timestamp,

@@ -5,7 +5,7 @@ REJO registra y convierte en decisiones los hechos diarios de una finca lechera 
 ## Leche
 
 **Medida del tanque**:
-El volumen leído en la regla del tanque de frío o el volumen equivalente en litros. Es el registro primario de producción; no identifica a una vaca individual.
+El volumen en litros que se ingresa directamente para el tanque de frío. Es el registro primario de producción; no identifica a una vaca individual.
 _Evitar_: lectura volumétrica, producción por vaca.
 
 **Entrega al tanquero**:
@@ -15,10 +15,6 @@ _Evitar_: despacho, venta diaria.
 **Salida interna**:
 Leche que no se entrega al comprador porque se da a terneros, se usa en la casa, se transforma o se descarta. Tiene valor económico aunque no genere un cobro.
 _Evitar_: merma genérica.
-
-**Tabla de aforo**:
-La relación específica de un tanque entre la marca de su regla y los litros que contiene.
-_Evitar_: conversión estándar del tanque.
 
 **Control lechero**:
 La medición ocasional de litros por vaca, inicialmente manual y mensual. Es una práctica opcional de Fase 2, no una exigencia de la sacada diaria.

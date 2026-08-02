@@ -63,7 +63,7 @@ describe("Phase 0 daily flow", () => {
 
     await screen.findByRole("heading", { name: "La finca, al día." });
     fireEvent.click(screen.getByRole("button", { name: "Anotar" }));
-    fireEvent.change(screen.getByLabelText("Medida del tanque"), { target: { value: "205" } });
+    fireEvent.change(screen.getByLabelText("Litros entregados"), { target: { value: "205" } });
     fireEvent.click(screen.getByRole("button", { name: "Guardar la medida" }));
 
     await waitFor(() =>
@@ -344,6 +344,7 @@ describe("Phase 0 daily flow", () => {
 
     await screen.findByRole("heading", { name: "Configuración" });
     expect(screen.queryByText("Plan sanitario mínimo")).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Tabla de aforo" })).not.toBeInTheDocument();
   });
 
   it("opens finances as a summary before opening a settlement form", async () => {

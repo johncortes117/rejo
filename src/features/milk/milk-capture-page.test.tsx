@@ -16,11 +16,13 @@ afterEach(async () => {
 });
 
 describe("MilkCapturePage", () => {
-  it("keeps the measurement date visible and identifies today by default", () => {
+  it("keeps the measurement date visible and accepts direct liters only", () => {
     render(<MilkCapturePage session={session} onSaved={vi.fn()} />);
 
-    expect(screen.getByLabelText("Fecha de la medida")).toHaveValue(nowInFarmTimezone().date);
-    expect(screen.getByText(/^Hoy ·/)).toBeInTheDocument();
+    expect(screen.getByLabelText("Fecha de medida")).toHaveValue(nowInFarmTimezone().date);
+    expect(screen.getByLabelText("Litros entregados")).toBeInTheDocument();
+    expect(screen.queryByText("¿Cómo la mediste?")).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Regla" })).not.toBeInTheDocument();
   });
 
   it("opens saved measures and prepares one for correction", async () => {
@@ -36,8 +38,8 @@ describe("MilkCapturePage", () => {
     expect(screen.getByText("Tanquero: 203.0 L")).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "Editar medida del 2026-07-20" }));
 
-    expect(screen.getByLabelText("Fecha de la medida")).toHaveValue("2026-07-20");
-    expect(screen.getByLabelText("Fecha de la medida")).toBeDisabled();
+    expect(screen.getByLabelText("Fecha de medida")).toHaveValue("2026-07-20");
+    expect(screen.getByLabelText("Fecha de medida")).toBeDisabled();
     expect(screen.getByRole("button", { name: "Guardar cambios" })).toBeInTheDocument();
   });
 });

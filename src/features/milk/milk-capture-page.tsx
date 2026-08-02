@@ -1,9 +1,8 @@
 import { useState } from "react";
 import { useLiveQuery } from "dexie-react-hooks";
-import { ArrowLeft, Baby, CalendarDays, CirclePlus, Droplets, History, Pencil, Ruler, Save, Truck } from "lucide-react";
+import { ArrowLeft, Baby, CalendarDays, CirclePlus, Droplets, History, Pencil, Save, Truck } from "lucide-react";
 import { Button, Card, FieldLabel, Notice, TextInput } from "@/components/ui";
 import { nowInFarmTimezone } from "@/domain/time";
-import { interpolateTankLiters } from "@/domain/tank";
 import type { FarmSession } from "@/domain/models";
 import { db } from "@/db/rejo-db";
 import {
@@ -33,7 +32,7 @@ const MilkHistoryPage = ({ entries, today, onBack, onEdit }: { entries: MilkHist
       <div className="mt-6 space-y-3">
         {entries.length === 0 ? <Notice tone="info">Aún no hay medidas del tanque guardadas.</Notice> : entries.map((entry) => <article key={entry.date} className="rounded-3xl border border-stone-200 bg-white p-4 shadow-[0_8px_28px_rgba(28,25,23,0.06)]">
           <div className="flex items-start justify-between gap-3"><div><div className="flex flex-wrap items-center gap-2"><p className="font-black text-stone-950">{formatHistoryDate(entry.date)}</p>{entry.date === today ? <span className="rounded-full bg-lime-100 px-2.5 py-1 text-xs font-bold text-lime-950">Hoy</span> : null}</div><p className="mt-1 text-2xl font-black tracking-tight text-lime-900">{entry.liters.toFixed(1)} L</p></div><Button type="button" className="min-h-10 shrink-0 bg-stone-100 px-3 py-2 text-sm text-stone-800" aria-label={`Editar medida del ${entry.date}`} onClick={() => onEdit(entry)}><Pencil size={17} aria-hidden="true" />Editar</Button></div>
-          {entry.mark !== undefined || entry.buyerLiters !== undefined || entry.calvesLiters !== undefined ? <div className="mt-4 flex flex-wrap gap-2 border-t border-stone-100 pt-3 text-sm font-semibold text-stone-600">{entry.mark !== undefined ? <span className="rounded-lg bg-stone-100 px-2.5 py-1">Regla: {entry.mark}</span> : null}{entry.buyerLiters !== undefined ? <span className="rounded-lg bg-sky-50 px-2.5 py-1 text-sky-900">Tanquero: {entry.buyerLiters.toFixed(1)} L</span> : null}{entry.calvesLiters !== undefined ? <span className="rounded-lg bg-amber-50 px-2.5 py-1 text-amber-950">Terneros: {entry.calvesLiters.toFixed(1)} L</span> : null}</div> : null}
+          {entry.buyerLiters !== undefined || entry.calvesLiters !== undefined ? <div className="mt-4 flex flex-wrap gap-2 border-t border-stone-100 pt-3 text-sm font-semibold text-stone-600">{entry.buyerLiters !== undefined ? <span className="rounded-lg bg-sky-50 px-2.5 py-1 text-sky-900">Tanquero: {entry.buyerLiters.toFixed(1)} L</span> : null}{entry.calvesLiters !== undefined ? <span className="rounded-lg bg-amber-50 px-2.5 py-1 text-amber-950">Terneros: {entry.calvesLiters.toFixed(1)} L</span> : null}</div> : null}
         </article>)}
       </div>
     </div>
@@ -43,7 +42,6 @@ const MilkHistoryPage = ({ entries, today, onBack, onEdit }: { entries: MilkHist
 export const MilkCapturePage = ({ session, onSaved }: MilkCapturePageProps) => {
   const { date: today } = nowInFarmTimezone();
   const [date, setDate] = useState(today);
-  const [mode, setMode] = useState<"liters" | "mark">("liters");
   const [value, setValue] = useState("");
   const [calvesLiters, setCalvesLiters] = useState("");
   const [buyerLiters, setBuyerLiters] = useState("");
@@ -52,14 +50,6 @@ export const MilkCapturePage = ({ session, onSaved }: MilkCapturePageProps) => {
   const [isSaving, setIsSaving] = useState(false);
   const [isHistoryOpen, setIsHistoryOpen] = useState(false);
   const [editingEntry, setEditingEntry] = useState<MilkHistoryEntry>();
-  const calibrationPoints = useLiveQuery(
-    () =>
-      db.tankCalibrations
-        .filter((point) => point.farmId === session.farmId && !point.deletedAt)
-        .toArray(),
-    [session.farmId],
-    []
-  );
   const dashboard = useLiveQuery(
     () => getMilkDashboard(db, session.farmId, date),
     [session.farmId, date]
@@ -82,20 +72,14 @@ export const MilkCapturePage = ({ session, onSaved }: MilkCapturePageProps) => {
     return buildMilkHistory(readings, usages);
   }, [session.farmId], []);
   const numericValue = Number(value);
-  const interpolation =
-    mode === "mark" && Number.isFinite(numericValue)
-      ? interpolateTankLiters(numericValue, calibrationPoints)
-      : null;
-  const liters = mode === "liters" ? numericValue : interpolation?.liters;
+  const liters = numericValue;
   const savedFarmLiters = dateReadings.find((reading) => reading.readBy === "farm" && reading.moment === "at_pickup")?.liters;
   const savedBuyerLiters = dateReadings.find((reading) => reading.readBy === "buyer" && reading.moment === "at_pickup")?.liters;
   const balance = computeMilkBalance(savedFarmLiters, savedBuyerLiters);
-  const dateCaption = date === today ? `Hoy · ${formatHistoryDate(date)}` : formatHistoryDate(date);
 
   const editEntry = (entry: MilkHistoryEntry) => {
     setDate(entry.date);
-    setMode(entry.mark === undefined ? "liters" : "mark");
-    setValue(String(entry.mark ?? entry.liters));
+    setValue(String(entry.liters));
     setCalvesLiters(entry.calvesLiters === undefined ? "" : String(entry.calvesLiters));
     setBuyerLiters(entry.buyerLiters === undefined ? "" : String(entry.buyerLiters));
     setEditingEntry(entry);
@@ -108,8 +92,8 @@ export const MilkCapturePage = ({ session, onSaved }: MilkCapturePageProps) => {
     setError(undefined);
     setMessage(undefined);
 
-    if (!Number.isFinite(liters) || liters === undefined || liters < 0) {
-      setError(mode === "mark" ? "Ingresa una marca que se pueda convertir." : "Ingresa los litros.");
+    if (!Number.isFinite(liters) || liters < 0) {
+      setError("Ingresa los litros.");
       return;
     }
 
@@ -130,7 +114,6 @@ export const MilkCapturePage = ({ session, onSaved }: MilkCapturePageProps) => {
         userId: session.userId,
         date,
         liters,
-        mark: mode === "mark" ? numericValue : undefined,
         milkForCalvesLiters: calvesLiters ? Number(calvesLiters) : undefined,
         duplicateStrategy: editingEntry ? "replace" : duplicateStrategy,
         replaceMilkUsageIds: (editingEntry || duplicateStrategy === "replace") ? dateCalfUsages.map((usage) => usage.id) : undefined
@@ -171,22 +154,11 @@ export const MilkCapturePage = ({ session, onSaved }: MilkCapturePageProps) => {
 
       <Card>
           <section className="rounded-2xl border border-lime-200 bg-lime-50 p-3.5">
-          <div className="flex items-center gap-3"><span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-white text-lime-800 shadow-sm"><CalendarDays size={20} aria-hidden="true" /></span><div className="min-w-0"><label htmlFor="milk-measurement-date" className="block text-sm font-black text-lime-950">Fecha de la medida</label><p className="mt-0.5 text-sm font-semibold text-lime-800">{dateCaption}</p></div></div>
+          <div className="flex items-center gap-3"><span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-white text-lime-800 shadow-sm"><CalendarDays size={20} aria-hidden="true" /></span><label htmlFor="milk-measurement-date" className="block text-sm font-black text-lime-950">Fecha de medida</label></div>
           <TextInput id="milk-measurement-date" className="mt-3 min-h-12 min-w-0 bg-white px-3 text-base font-bold" type="date" value={date} disabled={Boolean(editingEntry)} onChange={(event) => setDate(event.target.value)} />
         </section>
         {editingEntry ? <div className="mt-3 flex items-center justify-between gap-3 rounded-2xl bg-sky-50 px-3 py-2.5 text-sm font-semibold text-sky-950"><span>Corrigiendo la medida del {formatHistoryDate(editingEntry.date)}.</span><button type="button" className="shrink-0 font-black underline" onClick={() => setEditingEntry(undefined)}>Cancelar</button></div> : null}
-        <section className="mt-5"><p className="px-1 text-xs font-bold uppercase tracking-[0.14em] text-stone-500">¿Cómo la mediste?</p><div className="mt-2 grid grid-cols-2 gap-2 rounded-2xl bg-stone-100 p-1.5"><button type="button" aria-pressed={mode === "liters"} className={`inline-flex min-h-12 items-center justify-center gap-2 rounded-xl px-3 text-sm font-black transition focus:outline-none focus:ring-4 focus:ring-lime-200 ${mode === "liters" ? "bg-lime-700 text-white shadow-sm" : "text-stone-600"}`} onClick={() => setMode("liters")}><Droplets size={18} aria-hidden="true" />Litros</button><button type="button" aria-label="Registrar por marca de regla" aria-pressed={mode === "mark"} disabled={calibrationPoints.length === 0} className={`inline-flex min-h-12 items-center justify-center gap-2 rounded-xl px-3 text-sm font-black transition focus:outline-none focus:ring-4 focus:ring-lime-200 disabled:cursor-not-allowed disabled:opacity-45 ${mode === "mark" ? "bg-lime-700 text-white shadow-sm" : "text-stone-600"}`} onClick={() => setMode("mark")}><Ruler size={18} aria-hidden="true" />Regla</button></div>{calibrationPoints.length === 0 ? <p className="mt-2 px-1 text-xs font-semibold leading-snug text-stone-500">La opción Regla se activa al cargar la tabla de aforo.</p> : null}</section>
-
-        <section className="mt-5"><label htmlFor="milk-measurement-value" className="px-1 text-xs font-bold uppercase tracking-[0.14em] text-stone-500">{mode === "liters" ? "Medida del tanque" : "Marca de la regla"}</label><div className="relative mt-2"><TextInput id="milk-measurement-value" autoFocus className="min-h-24 border-2 border-lime-300 bg-white px-5 pr-16 text-4xl font-black tracking-tight placeholder:text-stone-300 focus:border-lime-700" inputMode="decimal" min="0" step="0.1" type="number" value={value} onChange={(event) => setValue(event.target.value)} placeholder="0.0" /><span className="pointer-events-none absolute right-5 top-1/2 -translate-y-1/2 text-lg font-black text-stone-500">{mode === "liters" ? "L" : "cm"}</span></div></section>
-
-        {mode === "mark" && interpolation ? (
-          <Notice tone={interpolation.extrapolated ? "warning" : "success"}>
-            La marca equivale a <strong>{interpolation.liters.toFixed(1)} litros</strong>.
-            {interpolation.extrapolated
-              ? " Está por encima de tu tabla; confirma que la marca es correcta."
-              : ""}
-          </Notice>
-        ) : null}
+        <section className="mt-5"><label htmlFor="milk-measurement-value" className="px-1 text-xs font-bold uppercase tracking-[0.14em] text-stone-500">Litros entregados</label><div className="relative mt-2"><TextInput id="milk-measurement-value" autoFocus className="min-h-28 border-2 border-lime-300 bg-white px-5 pr-20 text-5xl font-black tracking-tight placeholder:text-stone-300 focus:border-lime-700 sm:text-6xl" inputMode="decimal" min="0" step="0.1" type="number" value={value} onChange={(event) => setValue(event.target.value)} placeholder="0.0" /><span className="pointer-events-none absolute right-5 top-1/2 -translate-y-1/2 text-2xl font-black text-stone-500">L</span></div></section>
 
         <details className="mt-5 rounded-2xl border border-stone-200 bg-stone-50 px-4 py-3.5">
           <summary className="flex cursor-pointer items-center gap-2 text-sm font-black text-stone-700"><CirclePlus size={19} aria-hidden="true" />Agregar datos opcionales</summary>

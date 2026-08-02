@@ -3,7 +3,6 @@ import type { MilkUsage, TankReading } from "@/domain/models";
 export interface MilkHistoryEntry {
   date: string;
   liters: number;
-  mark?: number;
   buyerLiters?: number;
   calvesLiters?: number;
 }
@@ -34,7 +33,6 @@ export const buildMilkHistory = (readings: TankReading[], usages: MilkUsage[]): 
       return {
         date,
         liters: farmReading.liters,
-        mark: farmReading.mark,
         buyerLiters: buyerReading?.liters,
         calvesLiters: calvesLiters && calvesLiters > 0 ? Math.round(calvesLiters * 10) / 10 : undefined
       };
